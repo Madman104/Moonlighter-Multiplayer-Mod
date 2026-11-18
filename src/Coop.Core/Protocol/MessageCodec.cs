@@ -50,6 +50,31 @@ namespace Coop.Core.Protocol
                         break;
                     case MessageType.Revive:
                     case MessageType.EmblemReturn:
+                    case MessageType.CashSell:
+                    case MessageType.ShopOpen:
+                        break;
+                    case MessageType.EntityStates:
+                        var es = (EntityStates)msg;
+                        var ents = es.Entities ?? new EntityState[0];
+                        w.Write(es.Group);
+                        w.Write(es.Extra);
+                        w.Write((ushort)System.Math.Min(ents.Length, ushort.MaxValue));
+                        for (int i = 0; i < System.Math.Min(ents.Length, ushort.MaxValue); i++)
+                        {
+                            var en = ents[i];
+                            w.Write(en.Id);
+                            w.Write(en.X);
+                            w.Write(en.Y);
+                            var ls = en.Layers ?? new SpriteLayer[0];
+                            w.Write((byte)System.Math.Min(ls.Length, 255));
+                            for (int j = 0; j < System.Math.Min(ls.Length, 255); j++) WriteLayer(w, ls[j]);
+                        }
+                        break;
+                    case MessageType.WorldSlot:
+                    case MessageType.ShopState:
+                        var pt = ((PackedText)msg).Data ?? new byte[0];
+                        w.Write(pt.Length);
+                        w.Write(pt);
                         break;
                     case MessageType.FloorLayout:
                         var fl = (FloorLayout)msg;
@@ -146,7 +171,26 @@ namespace Coop.Core.Protocol
                             return (type, null);
                         case MessageType.Revive:
                         case MessageType.EmblemReturn:
+                        case MessageType.CashSell:
+                        case MessageType.ShopOpen:
                             return (type, null);
+                        case MessageType.EntityStates:
+                        {
+                            var es = new EntityStates { Group = rd.ReadByte(), Extra = rd.ReadByte() };
+                            es.Entities = new EntityState[rd.ReadUInt16()];
+                            for (int i = 0; i < es.Entities.Length; i++)
+                            {
+                                var en = new EntityState { Id = rd.ReadUInt16(), X = rd.ReadSingle(), Y = rd.ReadSingle() };
+                                en.Layers = new SpriteLayer[rd.ReadByte()];
+                                for (int j = 0; j < en.Layers.Length; j++) en.Layers[j] = ReadLayer(rd);
+                                es.Entities[i] = en;
+                            }
+                            return (type, es);
+                        }
+                        case MessageType.WorldSlot:
+                            return (type, new WorldSlot { Data = rd.ReadBytes(rd.ReadInt32()) });
+                        case MessageType.ShopState:
+                            return (type, new ShopState { Data = rd.ReadBytes(rd.ReadInt32()) });
                         case MessageType.FloorLayout:
                             return (type, new FloorLayout { Culture = rd.ReadByte(), Floor = rd.ReadByte(), Json = rd.ReadString() });
                         case MessageType.DungeonTravel:
@@ -204,19 +248,33 @@ namespace Coop.Core.Protocol
             w.Write(s.Z);
             var layers = s.Layers ?? new SpriteLayer[0];
             w.Write((byte)layers.Length);
-            foreach (var l in layers)
-            {
-                w.Write(l.Slot);
-                w.Write(l.SpriteId);
-                byte flags = (byte)((l.Visible ? 1 : 0) | (l.FlipX ? 2 : 0));
-                w.Write(flags);
-                w.Write(l.SortingOrder);
-                w.Write(l.LocalX);
-                w.Write(l.LocalY);
-            }
+            foreach (var l in layers) WriteLayer(w, l);
             w.Write(s.Hp);
             w.Write(s.MaxHp);
             w.Write(s.Ghost);
+        }
+
+        private static void WriteLayer(BinaryWriter w, SpriteLayer l)
+        {
+            w.Write(l.Slot);
+            w.Write(l.SpriteId);
+            byte flags = (byte)((l.Visible ? 1 : 0) | (l.FlipX ? 2 : 0));
+            w.Write(flags);
+            w.Write(l.SortingOrder);
+            w.Write(l.LocalX);
+            w.Write(l.LocalY);
+        }
+
+        private static SpriteLayer ReadLayer(BinaryReader rd)
+        {
+            var l = new SpriteLayer { Slot = rd.ReadByte(), SpriteId = rd.ReadUInt16() };
+            byte flags = rd.ReadByte();
+            l.Visible = (flags & 1) != 0;
+            l.FlipX = (flags & 2) != 0;
+            l.SortingOrder = rd.ReadInt16();
+            l.LocalX = rd.ReadSingle();
+            l.LocalY = rd.ReadSingle();
+            return l;
         }
 
         private static PlayerState ReadPlayerState(BinaryReader rd)
@@ -231,17 +289,7 @@ namespace Coop.Core.Protocol
             };
             int n = rd.ReadByte();
             s.Layers = new SpriteLayer[n];
-            for (int i = 0; i < n; i++)
-            {
-                var l = new SpriteLayer { Slot = rd.ReadByte(), SpriteId = rd.ReadUInt16() };
-                byte flags = rd.ReadByte();
-                l.Visible = (flags & 1) != 0;
-                l.FlipX = (flags & 2) != 0;
-                l.SortingOrder = rd.ReadInt16();
-                l.LocalX = rd.ReadSingle();
-                l.LocalY = rd.ReadSingle();
-                s.Layers[i] = l;
-            }
+            for (int i = 0; i < n; i++) s.Layers[i] = ReadLayer(rd);
             s.Hp = rd.ReadSingle();
             s.MaxHp = rd.ReadSingle();
             s.Ghost = rd.ReadBoolean();

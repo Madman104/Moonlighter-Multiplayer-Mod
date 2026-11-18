@@ -110,6 +110,16 @@ namespace Coop.Core.Session
             Send(type, msg, true);
         }
 
+        /// <summary>
+        /// Sends a frequent gameplay update unreliably (a newer one follows soon); large ones are
+        /// sent reliably by the transport. Dropped unless Connected.
+        /// </summary>
+        public void SendFrequent(MessageType type, object msg)
+        {
+            if (State != SessionState.Connected) return;
+            Send(type, msg, false);
+        }
+
         /// <summary>Leaves the session and tells the other player.</summary>
         public void Close(string reason)
         {

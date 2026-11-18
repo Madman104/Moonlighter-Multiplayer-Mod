@@ -70,6 +70,22 @@ namespace Coop.Plugin.Shared
             return slot;
         }
 
+        private static int OwnIndex(GameSlot[] slots)
+        {
+            if (slots == null) return -1;
+            for (int i = 0; i < slots.Length; i++)
+                if (slots[i] != null && slots[i].seed == _ownSeed) return i;
+            return -1;
+        }
+
+        /// <summary>The guest's own slot as copied when they joined (null if none).</summary>
+        public static GameSlot OwnSlotCopy()
+        {
+            if (_ownSlotJson == null) return null;
+            try { return ReadOwnSlot(); }
+            catch (Exception) { return null; }
+        }
+
         private struct Swap
         {
             public int Index;
@@ -85,9 +101,11 @@ namespace Coop.Plugin.Shared
 
             var live = __instance.currentGameSlot;
             var slots = __instance.gameSaveData != null ? __instance.gameSaveData.gameSlots : null;
-            int index = slots != null ? Array.IndexOf(slots, live) : -1;
+            // In the host's world the live slot is the host's (not in this player's slot list):
+            // write over this player's own slot, found by seed.
+            int index = OwnIndex(slots);
             GameSlot own = null;
-            if (_ownSlotJson != null && live != null && index >= 0 && live.seed == _ownSeed)
+            if (_ownSlotJson != null && live != null && index >= 0)
             {
                 try { own = ReadOwnSlot(); }
                 catch (Exception e) { CoopPlugin.Log.LogWarning("Co-op: could not read your saved copy: " + e.Message); }
@@ -140,6 +158,8 @@ namespace Coop.Plugin.Shared
                 _loggedBlock = false;
                 return;
             }
+            // Loading the host's world is not this player's own save.
+            if (WorldSync.LoadingHostWorld) return;
             // A guest loaded a different save while connected: copy that one instead.
             var gm = GameManager.Instance;
             if (!s.IsHost && gm != null && gm.currentGameSlot != null && gm.currentGameSlot.seed != _ownSeed)
@@ -151,6 +171,7 @@ namespace Coop.Plugin.Shared
 
         private static void MainMenuPrefix()
         {
+            if (WorldSync.KeepSessionOnMenu) return; // going to the menu to load the host's world
             if (CoopManager.Instance != null && CoopManager.Instance.IsActive)
             {
                 CoopPlugin.Log.LogInfo("Co-op: leaving the session (returned to main menu)");

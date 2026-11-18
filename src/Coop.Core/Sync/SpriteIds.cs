@@ -11,7 +11,15 @@ namespace Coop.Core.Sync
     public sealed class SpriteIdAllocator
     {
         private readonly Dictionary<string, ushort> _ids = new Dictionary<string, ushort>(StringComparer.Ordinal);
-        private ushort _next = 1;
+        private readonly ushort _first;
+        private ushort _next;
+
+        /// <summary>first: lowest id handed out (separate ranges keep two senders apart).</summary>
+        public SpriteIdAllocator(ushort first = 1)
+        {
+            _first = first == 0 ? (ushort)1 : first;
+            _next = _first;
+        }
 
         public ushort GetOrAdd(string key, out bool isNew)
         {
@@ -28,7 +36,7 @@ namespace Coop.Core.Sync
         public void Reset()
         {
             _ids.Clear();
-            _next = 1;
+            _next = _first;
         }
     }
 

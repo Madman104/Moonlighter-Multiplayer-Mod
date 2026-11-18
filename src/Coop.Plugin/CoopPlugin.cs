@@ -33,6 +33,8 @@ namespace Coop.Plugin
             Shared.SaveGuard.Apply(_harmony);
             Shared.GhostMode.Apply(_harmony);
             Shared.DaySync.Apply(_harmony);
+            Shared.WorldSync.Apply(_harmony);
+            Shared.ShopSync.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }

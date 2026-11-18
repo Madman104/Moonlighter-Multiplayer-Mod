@@ -108,3 +108,63 @@ namespace Coop.Core.Protocol
         public string Json;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// Gzipped UTF-8 text (game JSON). Used for the host's whole save slot (WorldSlot) and the
+    /// shop's showcases and chests (ShopState).
+    /// </summary>
+    public class PackedText
+    {
+        public byte[] Data = new byte[0];
+
+        public static byte[] Pack(string text)
+        {
+            var raw = System.Text.Encoding.UTF8.GetBytes(text ?? "");
+            using (var ms = new System.IO.MemoryStream())
+            {
+                using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionLevel.Optimal, true))
+                    gz.Write(raw, 0, raw.Length);
+                return ms.ToArray();
+            }
+        }
+
+        public static string Unpack(byte[] data)
+        {
+            using (var ms = new System.IO.MemoryStream(data ?? new byte[0]))
+            using (var gz = new System.IO.Compression.GZipStream(ms, System.IO.Compression.CompressionMode.Decompress))
+            using (var rd = new System.IO.StreamReader(gz, System.Text.Encoding.UTF8))
+                return rd.ReadToEnd();
+        }
+    }
+
+    /// <summary>Host → guest: the host's save slot, so the guest plays in the host's world.</summary>
+    public sealed class WorldSlot : PackedText { }
+
+    /// <summary>Either way: the shop's showcases (with prices) and chests.</summary>
+    public sealed class ShopState : PackedText { }
+}
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>One drawn-only copy of something the other game simulates (e.g. a shop customer).</summary>
+    public sealed class EntityState
+    {
+        public ushort Id;
+        public float X;
+        public float Y;
+        public SpriteLayer[] Layers = new SpriteLayer[0];
+    }
+
+    /// <summary>Host → guest, ~10 times a second: everything in one group, so missing ids are gone.</summary>
+    public sealed class EntityStates
+    {
+        public const byte ShopVisitors = 1;
+
+        public byte Group;
+        /// <summary>Group-specific flag. Shop: 1 = a customer is waiting at the cash register.</summary>
+        public byte Extra;
+        public EntityState[] Entities = new EntityState[0];
+    }
+}

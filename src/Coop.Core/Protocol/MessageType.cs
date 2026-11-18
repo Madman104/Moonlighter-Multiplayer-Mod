@@ -23,5 +23,10 @@ namespace Coop.Core.Protocol
         PoolSpent = 19,
         BagSnapshot = 20,
         EmblemReturn = 21,
+        WorldSlot = 22,
+        ShopState = 23,
+        CashSell = 24,
+        EntityStates = 25,
+        ShopOpen = 26,
     }
 }
