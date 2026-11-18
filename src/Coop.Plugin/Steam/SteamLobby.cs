@@ -53,6 +53,22 @@ namespace Coop.Plugin.Steam
 
         public static void HostNow() => _instance?.Host();
 
+        /// <summary>True while this player hosts an open Steam lobby.</summary>
+        public static bool Hosting => _instance != null && _instance._lobby != CSteamID.Nil
+            && _instance._transport != null && _instance._transport.IsHost;
+
+        /// <summary>Opens Steam's invite window for the open lobby again.</summary>
+        public static void OpenInvite()
+        {
+            if (Hosting) SteamFriends.ActivateGameOverlayInviteDialog(_instance._lobby);
+        }
+
+        /// <summary>Opens the Steam overlay on the friends list (to accept an invite).</summary>
+        public static void OpenFriends()
+        {
+            if (Available) SteamFriends.ActivateGameOverlay("Friends");
+        }
+
         public void Host()
         {
             CoopManager.Instance.Leave();

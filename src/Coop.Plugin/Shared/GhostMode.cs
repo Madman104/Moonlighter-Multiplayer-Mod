@@ -73,8 +73,13 @@ namespace Coop.Plugin.Shared
             };
             session.StateChanged += st =>
             {
-                // Partner gone while you're a ghost: nobody can revive you, so it's a real death.
-                if (st == SessionState.Closed && LocalGhost) RealDeath("partner left while you were a ghost");
+                // Partner gone while you're a ghost: nobody can revive you. The host dies for real;
+                // a guest goes back to the main menu with their bag (WorldSync), so just stop being a ghost.
+                if (st == SessionState.Closed && LocalGhost)
+                {
+                    if (session.IsHost) RealDeath("partner left while you were a ghost");
+                    else Exit(1f);
+                }
             };
         }
 

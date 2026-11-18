@@ -24,7 +24,7 @@ namespace Coop.Plugin.Menu
         private RectTransform _container;
         private readonly List<Button> _original = new List<Button>();
         private Button _entry;
-        private Button _status, _hostSteam, _hostIp, _join, _paste, _leave, _back;
+        private Button _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _back;
         private readonly List<Button> _sub = new List<Button>();
         private string _pasteMessage;
         private float _pasteMessageUntil;
@@ -93,12 +93,13 @@ namespace Coop.Plugin.Menu
             _status.interactable = false;
             _status.transition = Selectable.Transition.None;
             _hostSteam = Clone(template, "HOST (STEAM)", () => { if (SteamLobby.Available) SteamLobby.HostNow(); });
+            _invite = Clone(template, "INVITE FRIEND", SteamLobby.OpenInvite);
             _hostIp = Clone(template, "HOST (IP)", () => CoopManager.Instance.HostTcp(CoopConfig.Port.Value));
             _join = Clone(template, "JOIN", () => CoopManager.Instance.JoinTcp(CoopConfig.LastHostAddress.Value, CoopConfig.Port.Value));
             _paste = Clone(template, "PASTE IP", PasteAddress);
             _leave = Clone(template, "LEAVE CO-OP", () => CoopManager.Instance.Leave());
             _back = Clone(template, "BACK", () => ShowSubMenu(false, resizeFrame: true));
-            _sub.AddRange(new[] { _status, _hostSteam, _hostIp, _join, _paste, _leave, _back });
+            _sub.AddRange(new[] { _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _back });
             foreach (var b in _sub) b.gameObject.SetActive(false);
 
             // Append to the list (never insert): the game uses buttons[0] and buttons[2] by index.
@@ -179,6 +180,7 @@ namespace Coop.Plugin.Menu
             SetLabel(_status, Shorten(status, 46));
 
             SetInteractable(_hostSteam, !active && SteamLobby.Available && !TestClientMode.Active);
+            SetInteractable(_invite, active && SteamLobby.Hosting);
             SetInteractable(_hostIp, !active);
             SetInteractable(_join, !active);
             SetInteractable(_paste, !active);

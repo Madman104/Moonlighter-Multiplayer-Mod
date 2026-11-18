@@ -9,7 +9,7 @@ using UnityEngine.UI;
 namespace Coop.Plugin.Menu
 {
     /// <summary>
-    /// Adds "Continue as co-op host" under the main menu's Continue entry. It is a clone of the
+    /// Adds "Continue as co-op host" and "Join co-op" under the main menu's Continue entry. It is a clone of the
     /// game's own Continue button (same font, fade-in and selection arrows). Choosing it loads
     /// your save exactly like Continue, then starts hosting (Steam lobby; IP in test-client mode)
     /// once you are in town.
@@ -33,37 +33,32 @@ namespace Coop.Plugin.Menu
                 postfix: new HarmonyMethod(typeof(MainMenuCoop), nameof(MirrorContinue)));
         }
 
+        private const string JoinLabel = "Join co-op";
+        private static GameObject _join;
+        private static Selectable _below;
+
         // Before Awake, so the game adds its selection arrows, fade-in and enable/disable to ours too.
         private static void AwakePrefix(MainMenuPanel __instance)
         {
             try
             {
-                var cont = __instance.mainMenuButtons[0];
-                var go = UnityEngine.Object.Instantiate(cont, cont.transform.parent, false);
-                go.name = "CoopHostContinue";
-                go.transform.SetSiblingIndex(cont.transform.GetSiblingIndex() + 1);
-                foreach (var c in go.GetComponentsInChildren<Component>(true))
-                    if (c != null && c.GetType().Name == "Localize") UnityEngine.Object.DestroyImmediate(c);
-
-                var b = go.GetComponent<Button>();
-                b.onClick = new Button.ButtonClickedEvent(); // drop the cloned StartGame listener
                 var panel = __instance;
-                b.onClick.AddListener(() =>
+                var cont = panel.mainMenuButtons[0];
+                _button = CloneEntry(cont, "CoopHostContinue", 1, () =>
                 {
-                    try
-                    {
-                        _hostPending = true;
-                        _readySince = -1f;
-                        CoopPlugin.Log.LogInfo("Co-op: loading your save to host");
-                        panel.StartGame();
-                    }
-                    catch (Exception e) { CoopPlugin.Log.LogError("Co-op host from main menu failed: " + e); }
+                    _hostPending = true;
+                    _readySince = -1f;
+                    CoopPlugin.Log.LogInfo("Co-op: loading your save to host");
+                    panel.StartGame();
                 });
-                SetLabel(go, cont);
-                MakeRoom(__instance, cont, go);
+                _join = CloneEntry(cont, "CoopJoin", 2, JoinNow);
+                SetLabel(_button, cont, Label);
+                SetLabel(_join, cont, JoinLabel);
+                MakeRoom(panel, cont, 2);
+                LinkNavigation(panel, cont);
                 // Appended: the game reaches its own buttons by index 0..5.
-                __instance.mainMenuButtons.Add(go);
-                _button = go;
+                panel.mainMenuButtons.Add(_button);
+                panel.mainMenuButtons.Add(_join);
             }
             catch (Exception e)
             {
@@ -71,90 +66,130 @@ namespace Coop.Plugin.Menu
             }
         }
 
-        /// <summary>
-        /// The menu entries have fixed positions (no layout group): put ours one row below
-        /// Continue and move every entry below Continue down by one row.
-        /// </summary>
-        private static void MakeRoom(MainMenuPanel panel, GameObject cont, GameObject ours)
+        private static GameObject CloneEntry(GameObject cont, string name, int rowsBelow, Action onClick)
+        {
+            var go = UnityEngine.Object.Instantiate(cont, cont.transform.parent, false);
+            go.name = name;
+            go.transform.SetSiblingIndex(cont.transform.GetSiblingIndex() + rowsBelow);
+            foreach (var c in go.GetComponentsInChildren<Component>(true))
+                if (c != null && c.GetType().Name == "Localize") UnityEngine.Object.DestroyImmediate(c);
+            var b = go.GetComponent<Button>();
+            b.onClick = new Button.ButtonClickedEvent(); // drop the cloned StartGame listener
+            b.onClick.AddListener(() =>
+            {
+                try { onClick(); }
+                catch (Exception e) { CoopPlugin.Log.LogError("Co-op main menu action failed: " + e); }
+            });
+            return go;
+        }
+
+        // Join: Steam players accept the host's invite (the overlay opens on the friends list,
+        // which works with a pad); without Steam, join the last IP address.
+        private static void JoinNow()
+        {
+            var mgr = CoopManager.Instance;
+            if (mgr == null) return;
+            if (!TestClientMode.Active && SteamLobby.Available)
+            {
+                SteamLobby.OpenFriends();
+                CoopToast.Show("Accept your friend's co-op invite in Steam");
+                return;
+            }
+            CoopToast.Show("Joining " + CoopConfig.LastHostAddress.Value + "...");
+            mgr.JoinTcp(CoopConfig.LastHostAddress.Value, CoopConfig.Port.Value);
+        }
+
+        private static float Row(MainMenuPanel panel, GameObject cont)
         {
             var c = (RectTransform)cont.transform;
             var next = (RectTransform)panel.mainMenuButtons[1].transform;
             float row = next.anchoredPosition.y - c.anchoredPosition.y; // negative: rows go down
-            if (Mathf.Abs(row) < 1f) row = -60f;
+            return Mathf.Abs(row) < 1f ? -60f : row;
+        }
+
+        /// <summary>
+        /// The menu entries have fixed positions (no layout group): put ours in the rows below
+        /// Continue and move every entry below Continue down to make room.
+        /// </summary>
+        private static void MakeRoom(MainMenuPanel panel, GameObject cont, int rows)
+        {
+            var c = (RectTransform)cont.transform;
+            float row = Row(panel, cont);
             foreach (var b in panel.mainMenuButtons)
             {
                 if (b == null || b == cont) continue;
                 var r = (RectTransform)b.transform;
                 if (r.parent == c.parent && r.anchoredPosition.y < c.anchoredPosition.y - 1f)
-                    r.anchoredPosition += new Vector2(0f, row);
+                    r.anchoredPosition += new Vector2(0f, row * rows);
             }
-            var o = (RectTransform)ours.transform;
-            o.anchoredPosition = c.anchoredPosition + new Vector2(0f, row);
-            LinkNavigation(panel, cont, ours);
+            ((RectTransform)_button.transform).anchoredPosition = c.anchoredPosition + new Vector2(0f, row);
+            ((RectTransform)_join.transform).anchoredPosition = c.anchoredPosition + new Vector2(0f, row * 2f);
         }
 
+        private static Navigation Nav(Selectable up, Selectable down)
+            => new Navigation { mode = Navigation.Mode.Explicit, selectOnUp = up, selectOnDown = down };
+
         /// <summary>
-        /// The menu uses explicit up/down links, and our clone copied Continue's (down = Load),
-        /// so keys and pad skipped it. Insert it into the chain: Continue -> ours -> Load.
+        /// The menu uses explicit up/down links (Continue's down is Load), so clones would be
+        /// skipped by keys and pad. Chain: Continue -> host -> join -> Load.
         /// </summary>
-        private static void LinkNavigation(MainMenuPanel panel, GameObject cont, GameObject ours)
+        private static void LinkNavigation(MainMenuPanel panel, GameObject cont)
         {
             var c = cont.GetComponent<Button>();
-            var o = ours.GetComponent<Button>();
-            CoopPlugin.Log.LogInfo($"Co-op main menu: Continue navigation was {c.navigation.mode}, down = {(c.navigation.selectOnDown != null ? c.navigation.selectOnDown.name : "none")}");
+            var h = _button.GetComponent<Button>();
+            var j = _join.GetComponent<Button>();
             var below = c.navigation.selectOnDown;
-            if (below == null || below == o) below = panel.mainMenuButtons[1].GetComponent<Selectable>();
+            if (below == null || below == h || below == j) below = panel.mainMenuButtons[1].GetComponent<Selectable>();
+            _below = below;
 
             var nc = c.navigation;
             nc.mode = Navigation.Mode.Explicit;
-            nc.selectOnDown = o;
+            nc.selectOnDown = h;
             c.navigation = nc;
-
-            var no = new Navigation { mode = Navigation.Mode.Explicit, selectOnUp = c, selectOnDown = below };
-            o.navigation = no;
-
+            h.navigation = Nav(c, j);
+            j.navigation = Nav(h, below);
             if (below != null)
             {
                 var nb = below.navigation;
-                if (nb.mode == Navigation.Mode.Explicit && (nb.selectOnUp == c || nb.selectOnUp == null))
+                if (nb.mode == Navigation.Mode.Explicit)
                 {
-                    nb.selectOnUp = o;
+                    nb.selectOnUp = j;
                     below.navigation = nb;
                 }
             }
         }
 
-        // Continue is hidden without a save: then ours is hidden too, and Up from Load must not
-        // stop on Continue. The game hides Continue in PrepareMenuButtons, after Awake.
+        // Without a save Continue (and our host entry) is hidden: Join links straight to Load.
         private static void FixNavigationWhenHidden(MainMenuPanel panel)
         {
-            if (_button == null || panel.mainMenuButtons[0].activeSelf) return;
-            var load = panel.mainMenuButtons[1].GetComponent<Selectable>();
-            var nl = load.navigation;
-            if (nl.mode == Navigation.Mode.Explicit && nl.selectOnUp == _button.GetComponent<Selectable>())
-            {
-                nl.selectOnUp = null;
-                load.navigation = nl;
-            }
+            if (_join == null) return;
+            bool contShown = panel.mainMenuButtons[0].activeSelf;
+            var j = _join.GetComponent<Button>();
+            j.navigation = Nav(contShown ? (Selectable)_button.GetComponent<Button>() : null, _below);
         }
 
-        private static void SetLabel(GameObject go, GameObject continueButton)
+        private static void SetLabel(GameObject go, GameObject continueButton, string label)
         {
             var text = go.GetComponent<Text>() ?? go.GetComponentInChildren<Text>(true);
             if (text == null) return;
             var original = continueButton.GetComponent<Text>() ?? continueButton.GetComponentInChildren<Text>(true);
             bool upper = original != null && !string.IsNullOrEmpty(original.text) && original.text == original.text.ToUpperInvariant();
-            text.text = upper ? Label.ToUpperInvariant() : Label;
+            text.text = upper ? label.ToUpperInvariant() : label;
         }
 
-        // Shown and clickable exactly when Continue is.
+        // The host entry is shown and clickable exactly when Continue is; Join always.
         private static void MirrorContinue(MainMenuPanel __instance)
         {
             if (_button == null) return;
             var cont = __instance.mainMenuButtons[0];
             _button.SetActive(cont.activeSelf);
             _button.GetComponent<Button>().interactable = cont.GetComponent<Button>().interactable;
-            SetLabel(_button, cont);
+            SetLabel(_button, cont, Label);
+            if (_join != null)
+            {
+                _join.SetActive(true);
+                SetLabel(_join, cont, JoinLabel);
+            }
             FixNavigationWhenHidden(__instance);
         }
 
