@@ -24,7 +24,7 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 ## What's shared and what's yours
 | Shared (the host's world) | Yours |
 |---|---|
-| Town, shop, upgrades, quests, calendar and time of day | Your bag, equipment and weapons |
+| Town, shop, upgrades, quests, calendar and time of day; townspeople walk the same way on both screens | Your bag, equipment and weapons |
 | Gold: one purse, and either player's purchase spends it | Your health |
 | Dungeon floors and rooms: you're always in the same room | Your loot: each player gets their own drops |
 | Enemies: same place, same health (2× health in co-op) | |
@@ -35,6 +35,8 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
   - Either player can stock showcases, set prices and use the register.
   - Customers come into the host's game; the guest sees them and can sell to them.
 - **Emblem portal:** the host's portal is the shared one. The guest's portal asks the host to go through theirs.
+
+Your partner's name (their Steam name) shows above their Will. In dungeons their health bar is under your gold, top left.
 
 ## Dying, ghosts and revives
 - **Dying while your partner is alive** turns you into a **ghost**. A ghost:

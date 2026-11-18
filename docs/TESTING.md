@@ -184,3 +184,6 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 | 15 | Guest quits: host keeps playing; enemies move normally | |
 | 16 | Controller only (both players): every co-op menu entry reachable; invite accepted via the overlay | |
 | 17 | Unknown (5th) dungeon: same floor and enemies | |
+| 18 | (1.0.2) Host goes into the dungeon while the guest is still loading in: guest arrives in the host's room | |
+| 19 | (1.0.2) Partner health bar sits under the gold, not over the bag icon; Steam names shown | |
+| 20 | (1.0.2) Town: same townspeople in the same places on both screens; guest can talk to them | |

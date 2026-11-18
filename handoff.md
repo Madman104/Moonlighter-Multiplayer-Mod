@@ -1,11 +1,11 @@
-# Moonlighter Co-op — handoff (1.0.1, 2026-11-18)
+# Moonlighter Co-op — handoff (1.0.2, 2026-11-18)
 
 ## Where things are
-- **Repo:** this folder (git). Newest work is on **`feat/coop-own-bags`**, which is stacked on all the stage branches (`main` → `feat/coop-stage1` → … → `feat/coop-stage4b` → `feat/coop-own-bags`). See "Merge" below.
-- **Version:** mod 1.0.1 (1.0.0 + review fixes). Other versions are refused by the handshake.
+- **Repo:** `C:\Users\jhn\OneDrive\Documents\GitHub\Moonlighter-Multiplayer-Mod`, pushed to GitHub `Madman104/Moonlighter-Multiplayer-Mod`, branch `main` (all work, including the old stage branches' history).
+- **Version:** mod 1.0.2. Other versions are refused by the handshake.
 - **Build/test:** `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (137 tests pass).
   - `tools\deploy.ps1` copies the build into the game; the game must be closed.
-  - `tools\package.ps1` makes `dist\MoonlighterCoop-1.0.1.zip` (the plugin plus the player guide).
+  - `tools\package.ps1` makes `dist\MoonlighterCoop-1.0.2.zip` (the plugin plus the player guide).
 - **Players:** [docs/PLAYER-GUIDE.md](docs/PLAYER-GUIDE.md) covers install, hosting, joining, the rules and the limits.
 - **What to test:** [docs/TESTING.md](docs/TESTING.md). The 1.0 checklist is at the bottom.
 
@@ -25,18 +25,19 @@
 | Disconnect | Host gone → guest's bag saved, guest to main menu (a ghost guest just stops being a ghost). Guest gone → host plays on; paused enemies resume | Not played |
 | Controller | All co-op menus are the game's own buttons with explicit up/down links. Steam invites through the overlay. INVITE FRIEND reopens the invite window | Keyboard navigation of the main menu entry tested by you |
 
+## 1.0.2 (after your first test with a friend)
+- **Fixed: a joining player couldn't get into the dungeon.** If you went into the dungeon while your friend was still loading your world, their game missed the trip and stayed in town. Now their game asks for a catch-up once it arrives, and yours re-sends the trip and the current floor, starting in your room.
+- **Partner health bar** is below your gold (it overlapped the bag icon) and shows numbers.
+- **Steam names** show above the partner's Will and on the health bar.
+- **Town NPCs run on the host:** both games pick the same townspeople, and the guest's copies follow the host's positions and sprites. They can still be talked to. Shop customers were already host-only.
+- **Decision to check:** enemies stay "run by the closer player" (already in the same place on both screens). Making the host run every enemy would mean enemies never attack the guest.
+
 ## Next steps
 1. **Play-test with your friend** using the 1.0 checklist in `docs/TESTING.md`. Expect bugs in the untested rows above.
 2. Fix what breaks, then **merge** (see below) and tag `v1.0.0`.
 
-## Merge
-`main` is an ancestor of `feat/coop-own-bags`, so merging is a fast-forward. I haven't done it: you asked to play-test first. Commands for when you're happy:
-```
-git checkout main
-git merge --ff-only feat/coop-own-bags
-git tag v1.0.0
-```
-The old stage branches can be deleted after that. `feat/coop-stage4b` (shared bag v1) is superseded; its commit is still in the history.
+## Branches
+Everything is on `main` (pushed). Tag a release once a play-test passes, e.g. `git tag v1.0.2` then `git push origin v1.0.2`.
 
 ## Decisions to check
 - **Guest joins the host's world** (new): needed for a shared shop and town. Joining sends the guest to the main menu if they're in a game. Town upgrades the host buys mid-session show for the guest next time they join.
