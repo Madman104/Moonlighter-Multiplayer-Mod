@@ -29,6 +29,7 @@ namespace Coop.Core.Tests.Dungeon
         {
             var h = RoundTrip(MessageType.EnemyHealth, new EnemyHealth { X = 1, Y = 2, Secret = false, Hp = new[] { 10f, 0f, 33.25f } });
             Assert.Equal(new[] { 10f, 0f, 33.25f }, h.Hp);
+            Assert.Equal(new[] { -1f, -1f, -1f }, h.Max);
             Assert.Equal(2, h.Y);
         }
 

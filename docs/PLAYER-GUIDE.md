@@ -53,7 +53,7 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 
 ## Saves
 - The **host's** save is the shared world and is saved as usual.
-- The **guest's** own save only keeps the bag and gear they end co-op with. Their gold, day and story stay as they were.
+- The **guest's** own save keeps the bag and gear they end co-op with, plus what they learned: items discovered, recipes and enchantments seen, decorations and familiars found, deepest floor reached. Their gold, day and story stay as they were.
 - If the host disconnects, the guest's bag is saved and they go back to the main menu.
 
 ## Known limits
@@ -61,6 +61,34 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 - If both players change the same showcase or chest slot at the same moment, the last change wins.
 - Town upgrades the host buys during a session appear for the guest next time they join.
 - Wanderer DLC dungeons: you travel together, but enemies there aren't shared.
+
+## Settings
+In the pause menu under **CO-OP**: **NAMES** (on/off) and **PARTNER SOUNDS** (100% / 50% / off).
+
+Everything else is in `BepInEx\config\com.coop.moonlighter.cfg` (made on first start; edit with the game closed):
+
+| Setting | Default | What it does |
+|---|---|---|
+| `[UI] ShowPlayerNames` | true | Names above the other players' heads |
+| `[Sound] PartnerSoundVolume` | 1 | Volume of the other players' sounds (0 = off) |
+| `[Sound] PartnerSoundRange` | 3 | How far their sounds carry, in half-screens |
+| `[Co-op] EnemyHandoffDistance` | 24 | Host only: how much closer you must be before an enemy turns on you (16 = one tile) |
+| `[Updates] CheckForUpdates` | true | On start, look for a newer release on GitHub and say so |
+| `[Connection] Port` | 27460 | Port for IP play |
+
+## Troubleshooting
+The log is `BepInEx\LogOutput.log` in the Moonlighter folder. Send it (from both players) when something goes wrong.
+
+| You see | What to do |
+|---|---|
+| "Co-op mod version mismatch" | Everyone needs the same version. Get the latest zip from the Releases page. |
+| "Game version mismatch" | Update Moonlighter in Steam on both PCs. |
+| Nothing co-op in the menus, no "Moonlighter Co-op ... loaded" in the log | BepInEx isn't installed right: `winhttp.dll` and the `BepInEx` folder must sit next to `Moonlighter.exe`, and the game must be started once after installing it. |
+| Can't join by IP | The host must allow the port (27460 TCP) in their firewall and router, or use Steam invites instead. |
+| Joining puts you on the main menu | Expected: the guest loads the host's world from there. Pick your save when asked. |
+| Your partner is stuck in town when you go into the dungeon | Wait a few seconds; their game catches up once it has loaded your world. |
+| "Shared floor item not known here" in the log | That item doesn't exist in this player's game (different DLC or NG+). |
+| "Dropped a late room update" in the log | A room change arrived for a room this game never built. Harmless once; tell me if it repeats. |
 
 ## Debug launch options (for testing on one PC)
 `--coop-test-client` (second copy without Steam, separate saves), `--coop-auto-host`, `--coop-auto-join <address>`. Players don't need these.

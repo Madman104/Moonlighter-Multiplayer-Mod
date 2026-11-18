@@ -152,6 +152,12 @@ namespace Coop.Plugin.Dungeon
                 if (h.Hp[id] < 0f) continue; // host has no enemy with this id
                 var stats = FindEnemy(room, id);
                 if (stats == null || !stats.isAlive) continue;
+                if (h.Max != null && id < h.Max.Length && h.Max[id] > 0f && Math.Abs(stats.maxHealth - h.Max[id]) > 0.5f)
+                {
+                    // Same max health as the host (difficulty and NG+ can differ per player).
+                    try { Traverse.Create(stats).Field("_currentStats").Field("maxHealth").SetValue(h.Max[id]); }
+                    catch (Exception e) { CoopPlugin.Log.LogWarning("Could not match enemy max health: " + e.Message); }
+                }
                 if (EnemyHealthRules.NeedsCorrection(stats.CurrentHealth, h.Hp[id]))
                     SetHealth(stats, h.Hp[id]);
             }
@@ -189,14 +195,15 @@ namespace Coop.Plugin.Dungeon
             int maxId = 0;
             foreach (var t in tags) maxId = Math.Max(maxId, t.Id);
             var hp = new float[Math.Min(maxId + 1, 255)];
-            for (int i = 0; i < hp.Length; i++) hp[i] = -1f;
+            var max = new float[hp.Length];
+            for (int i = 0; i < hp.Length; i++) { hp[i] = -1f; max[i] = -1f; }
             foreach (var t in tags)
             {
                 if (t.Id >= hp.Length) continue;
                 var e = t.GetComponent<Enemy>();
-                if (e != null && e.enemyRoom == room && e.enemyStats != null) hp[t.Id] = e.enemyStats.CurrentHealth;
+                if (e != null && e.enemyRoom == room && e.enemyStats != null) { hp[t.Id] = e.enemyStats.CurrentHealth; max[t.Id] = e.enemyStats.maxHealth; }
             }
-            s.SendGame(MessageType.EnemyHealth, new EnemyHealth { X = (short)room.x, Y = (short)room.y, Secret = room.isSecret, Hp = hp });
+            s.SendGame(MessageType.EnemyHealth, new EnemyHealth { X = (short)room.x, Y = (short)room.y, Secret = room.isSecret, Hp = hp, Max = max });
         }
 
         private static DungeonRoom FindRoom(int x, int y, bool secret)

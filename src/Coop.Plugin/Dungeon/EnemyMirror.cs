@@ -219,7 +219,7 @@ namespace Coop.Plugin.Dungeon
                     if (kv.Key > 0 && kv.Key < dist.Length && !kv.Value.Ghost && kv.Value.Scene == scene && now - kv.Value.At < 1f)
                         dist[kv.Key] = (p - kv.Value.Pos).sqrMagnitude;
                 int current = Owners.TryGetValue(id, out var c) ? c : 0;
-                int owner = EnemyOwnership.Owner(current, dist, EnemyOwnership.DefaultMargin);
+                int owner = EnemyOwnership.Owner(current, dist, Mathf.Max(0f, CoopConfig.EnemyHandoffDistance.Value));
                 Owners[id] = owner;
                 if (owner != 0) { ids.Add(id); owners.Add((byte)owner); }
             }

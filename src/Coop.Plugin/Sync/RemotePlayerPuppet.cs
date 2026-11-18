@@ -174,7 +174,7 @@ namespace Coop.Plugin.Sync
 
         private void OnGUI()
         {
-            if (!_shown || Camera.main == null) return;
+            if (!_shown || Camera.main == null || !CoopConfig.ShowNames.Value) return;
             // Just above Will's head: the top of the body sprite's visible pixels (its outline
             // points), not its frame, which has empty space above the head. Capped near the feet.
             int body = BodySlot();

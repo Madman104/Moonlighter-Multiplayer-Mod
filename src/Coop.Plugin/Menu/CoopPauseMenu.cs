@@ -24,7 +24,7 @@ namespace Coop.Plugin.Menu
         private RectTransform _container;
         private readonly List<Button> _original = new List<Button>();
         private Button _entry;
-        private Button _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _back;
+        private Button _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _names, _sounds, _back;
         private readonly List<Button> _sub = new List<Button>();
         private string _pasteMessage;
         private float _pasteMessageUntil;
@@ -98,8 +98,10 @@ namespace Coop.Plugin.Menu
             _join = Clone(template, "JOIN", () => CoopManager.Instance.JoinTcp(CoopConfig.LastHostAddress.Value, CoopConfig.Port.Value));
             _paste = Clone(template, "PASTE IP", PasteAddress);
             _leave = Clone(template, "LEAVE CO-OP", () => CoopManager.Instance.Leave());
+            _names = Clone(template, "NAMES", () => CoopConfig.ShowNames.Value = !CoopConfig.ShowNames.Value);
+            _sounds = Clone(template, "PARTNER SOUNDS", CycleSoundVolume);
             _back = Clone(template, "BACK", () => ShowSubMenu(false, resizeFrame: true));
-            _sub.AddRange(new[] { _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _back });
+            _sub.AddRange(new[] { _status, _hostSteam, _invite, _hostIp, _join, _paste, _leave, _names, _sounds, _back });
             foreach (var b in _sub) b.gameObject.SetActive(false);
 
             // Append to the list (never insert): the game uses buttons[0] and buttons[2] by index.
@@ -186,6 +188,16 @@ namespace Coop.Plugin.Menu
             SetInteractable(_paste, !active);
             SetInteractable(_leave, active);
             SetLabel(_join, "JOIN " + CoopConfig.LastHostAddress.Value);
+            SetLabel(_names, "NAMES: " + (CoopConfig.ShowNames.Value ? "ON" : "OFF"));
+            float v = CoopConfig.PartnerSoundVolume.Value;
+            SetLabel(_sounds, "PARTNER SOUNDS: " + (v <= 0.001f ? "OFF" : Mathf.RoundToInt(v * 100f) + "%"));
+        }
+
+        /// <summary>100% -> 50% -> off -> 100%.</summary>
+        private static void CycleSoundVolume()
+        {
+            float v = CoopConfig.PartnerSoundVolume.Value;
+            CoopConfig.PartnerSoundVolume.Value = v > 0.75f ? 0.5f : v > 0.001f ? 0f : 1f;
         }
 
         private void SetInteractable(Button b, bool value)

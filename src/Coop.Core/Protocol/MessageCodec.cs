@@ -130,6 +130,7 @@ namespace Coop.Core.Protocol
                         var hp = eh.Hp ?? new float[0];
                         w.Write((byte)System.Math.Min(hp.Length, 255));
                         for (int i = 0; i < System.Math.Min(hp.Length, 255); i++) w.Write(hp[i]);
+                        for (int i = 0; i < System.Math.Min(hp.Length, 255); i++) w.Write(eh.Max != null && i < eh.Max.Length ? eh.Max[i] : -1f);
                         break;
                     case MessageType.GoldDelta:
                         w.Write(((GoldDelta)msg).Delta);
@@ -302,6 +303,8 @@ namespace Coop.Core.Protocol
                             int hn = rd.ReadByte();
                             ehx.Hp = new float[hn];
                             for (int i = 0; i < hn; i++) ehx.Hp[i] = rd.ReadSingle();
+                            ehx.Max = new float[hn];
+                            for (int i = 0; i < hn; i++) ehx.Max[i] = rd.ReadSingle();
                             return (type, ehx);
                         case MessageType.GoldDelta:
                             return (type, new GoldDelta { Delta = rd.ReadInt32() });

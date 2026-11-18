@@ -122,6 +122,59 @@ namespace Coop.Plugin.Shared
             public GameSlot Own;
         }
 
+        /// <summary>
+        /// What the guest learned in co-op is kept in their own save too: items discovered,
+        /// recipes and enchantments seen, decorations and familiars found, and the deepest
+        /// floor reached. Merged (never removes anything the guest already had).
+        /// </summary>
+        private static void KeepProgress(GameSlot own, GameSlot live)
+        {
+            try
+            {
+                own.itemsDiscovered = MergeSeen(own.itemsDiscovered, live.itemsDiscovered, i => i.name + "|" + i.plusLevel, i => i.seen, (a, b) => a.seen |= b.seen);
+                own.recipesSeen = MergeSeen(own.recipesSeen, live.recipesSeen, r => r.name + "|" + r.plusLevel, r => r.seen, (a, b) => a.seen |= b.seen);
+                own.enchantmentsSeen = MergeSeen(own.enchantmentsSeen, live.enchantmentsSeen, r => r.name + "|" + r.plusLevel, r => r.seen, (a, b) => a.seen |= b.seen);
+                own.decorativeItemsDiscovered = MergeNames(own.decorativeItemsDiscovered, live.decorativeItemsDiscovered);
+                own.familiarsDiscovered = MergeNames(own.familiarsDiscovered, live.familiarsDiscovered);
+                if (live.maxDungeonLevelVisited != null)
+                {
+                    if (own.maxDungeonLevelVisited == null || own.maxDungeonLevelVisited.Length < live.maxDungeonLevelVisited.Length)
+                    {
+                        var grown = new int[live.maxDungeonLevelVisited.Length];
+                        if (own.maxDungeonLevelVisited != null) Array.Copy(own.maxDungeonLevelVisited, grown, own.maxDungeonLevelVisited.Length);
+                        own.maxDungeonLevelVisited = grown;
+                    }
+                    for (int i = 0; i < live.maxDungeonLevelVisited.Length; i++)
+                        own.maxDungeonLevelVisited[i] = Math.Max(own.maxDungeonLevelVisited[i], live.maxDungeonLevelVisited[i]);
+                }
+            }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Co-op: could not keep your discoveries: " + e.Message); }
+        }
+
+        private static List<T> MergeSeen<T>(List<T> own, List<T> live, Func<T, string> key, Func<T, bool> seen, Action<T, T> combine) where T : class
+        {
+            var result = own != null ? new List<T>(own) : new List<T>();
+            if (live == null) return result;
+            var byKey = new Dictionary<string, T>();
+            foreach (var x in result) if (x != null) byKey[key(x)] = x;
+            foreach (var x in live)
+            {
+                if (x == null) continue;
+                if (byKey.TryGetValue(key(x), out var have)) combine(have, x);
+                else { result.Add(x); byKey[key(x)] = x; }
+            }
+            return result;
+        }
+
+        private static List<string> MergeNames(List<string> own, List<string> live)
+        {
+            var result = own != null ? new List<string>(own) : new List<string>();
+            if (live == null) return result;
+            var have = new HashSet<string>(result);
+            foreach (var n in live) if (n != null && have.Add(n)) result.Add(n);
+            return result;
+        }
+
         private static bool SerializePrefix(GameManager __instance, out Swap __state)
         {
             __state = new Swap { Index = -1 };
@@ -154,6 +207,7 @@ namespace Coop.Plugin.Shared
             own.willInventory = new List<ItemSaveInfo>(live.willInventory);
             own.willEquippedItems = new List<ItemSaveInfo>(live.willEquippedItems);
             own.equippedWeaponSet = live.equippedWeaponSet;
+            KeepProgress(own, live);
             slots[index] = own;
             __instance.currentGameSlot = own; // SerializeGameSlot stamps the current slot
             __state = new Swap { Index = index, Live = live, Own = own };

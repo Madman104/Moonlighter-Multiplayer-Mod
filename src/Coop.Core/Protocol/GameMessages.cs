@@ -59,6 +59,8 @@ namespace Coop.Core.Protocol
         public short Y;
         public bool Secret;
         public float[] Hp;
+        /// <summary>Host's max health per id (difficulty/NG+ can differ per player); -1 = none.</summary>
+        public float[] Max;
     }
 }
 

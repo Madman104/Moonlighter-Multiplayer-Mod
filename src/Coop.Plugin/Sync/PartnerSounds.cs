@@ -191,7 +191,8 @@ namespace Coop.Plugin.Sync
             float view = cam != null && cam.orthographic ? cam.orthographicSize : 0f;
             if (view <= 0f) return;
             float dist = Vector2.Distance(will.transform.position, p.Pos);
-            float vol = SoundFalloff.Volume(dist, view, view * 3f) * Mathf.Clamp01(msg.Volume);
+            float range = Mathf.Max(1.5f, CoopConfig.PartnerSoundRange.Value);
+            float vol = SoundFalloff.Volume(dist, view, view * range) * Mathf.Clamp01(msg.Volume) * Mathf.Clamp01(CoopConfig.PartnerSoundVolume.Value);
             if (vol <= 0.01f) return;
             _replaying = true;
             try

@@ -36,6 +36,7 @@ namespace Coop.Plugin.Runtime
             go.AddComponent<CoopToast>();
             go.AddComponent<Sync.PlayerSync>();
             go.AddComponent<Shared.GhostMode>();
+            UpdateCheck.Start(Instance);
         }
 
         /// <summary>
@@ -164,6 +165,9 @@ namespace Coop.Plugin.Runtime
                     break;
                 case SessionState.Closed:
                     Status = "Closed: " + Session.CloseReason;
+                    if ((Session.CloseReason ?? "").Contains("version mismatch"))
+                        CoopToast.Show(UpdateCheck.Newer != null ? UpdateCheck.Message()
+                            : "Everyone needs the same co-op mod version: " + UpdateCheck.ReleasesPage);
                     SessionClosed?.Invoke(Session.CloseReason);
                     break;
             }

@@ -209,3 +209,9 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 4. Both players walk onto the same item at the same moment: only one keeps it; the other sees "Your partner grabbed that first" and it leaves their bag.
 5. Both open the same chest at the same moment: the later one sees "Your partner was already using that chest" on closing, and ends up with the first one's content.
 6. Late join: host goes into the dungeon, kills things, leaves loot, opens a chest, uses a pool; then the guest joins. The guest sees the same loot, chest content and pool level.
+
+## Settings, updates, max health, guest progress (mod 1.6.0)
+1. Pause > CO-OP: NAMES toggles the names; PARTNER SOUNDS cycles 100% / 50% / OFF and the partner's footsteps follow.
+2. With an older mod, start the game: a toast says the newer version is out; the log says "Co-op mod X is out". Up to date: the log says "Co-op mod is up to date".
+3. Different difficulty / NG+ between players: an enemy's health bar is the same on both screens after a second.
+4. As the guest, discover a new item in co-op, leave co-op, load your own save: the item is discovered there too.
