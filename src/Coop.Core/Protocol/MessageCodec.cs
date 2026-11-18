@@ -48,6 +48,8 @@ namespace Coop.Core.Protocol
                         break;
                     case MessageType.Bye:
                         break;
+                    case MessageType.Revive:
+                        break;
                     case MessageType.FloorLayout:
                         var fl = (FloorLayout)msg;
                         w.Write(fl.Culture);
@@ -128,6 +130,8 @@ namespace Coop.Core.Protocol
                             return (type, new SpriteDef { Id = rd.ReadUInt16(), Key = rd.ReadString() });
                         case MessageType.Bye:
                             return (type, null);
+                        case MessageType.Revive:
+                            return (type, null);
                         case MessageType.FloorLayout:
                             return (type, new FloorLayout { Culture = rd.ReadByte(), Floor = rd.ReadByte(), Json = rd.ReadString() });
                         case MessageType.DungeonTravel:
@@ -189,6 +193,9 @@ namespace Coop.Core.Protocol
                 w.Write(l.LocalX);
                 w.Write(l.LocalY);
             }
+            w.Write(s.Hp);
+            w.Write(s.MaxHp);
+            w.Write(s.Ghost);
         }
 
         private static PlayerState ReadPlayerState(BinaryReader rd)
@@ -214,6 +221,9 @@ namespace Coop.Core.Protocol
                 l.LocalY = rd.ReadSingle();
                 s.Layers[i] = l;
             }
+            s.Hp = rd.ReadSingle();
+            s.MaxHp = rd.ReadSingle();
+            s.Ghost = rd.ReadBoolean();
             return s;
         }
     }

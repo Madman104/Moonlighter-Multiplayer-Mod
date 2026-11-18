@@ -90,6 +90,7 @@ namespace Coop.Plugin.Sync
                 layers.Add(layer);
             }
 
+            Shared.GhostMode.Describe(will, out float hp, out float maxHp, out bool ghost);
             var p = root.position;
             session.SendPlayerState(new PlayerState
             {
@@ -99,6 +100,9 @@ namespace Coop.Plugin.Sync
                 Y = p.y,
                 Z = p.z,
                 Layers = layers.ToArray(),
+                Hp = hp,
+                MaxHp = maxHp,
+                Ghost = ghost,
             });
         }
     }

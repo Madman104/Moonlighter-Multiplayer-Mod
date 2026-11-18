@@ -30,6 +30,7 @@ namespace Coop.Plugin
             Dungeon.EnemySync.Apply(_harmony);
             Shared.GoldSync.Apply(_harmony);
             Shared.SaveGuard.Apply(_harmony);
+            Shared.GhostMode.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }

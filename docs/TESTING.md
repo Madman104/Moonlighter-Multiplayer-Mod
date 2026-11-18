@@ -98,3 +98,18 @@ Needs a person:
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–4 | | | |
+
+## Stage 5 (ghosts, revive, partner health bar)
+
+Automated (2026-11-18): `dotnet test` 118 pass; two connected test copies start with the Die / DealDamageToPlayer / DealDamageToEnemy / HealingArea / LoadTownSceneFromDungeon patches applied, no errors.
+
+Needs a person:
+1. **Partner health bar.** In a dungeon, top-left shows `P1`/`P2` with the partner's health; it drops when they take damage.
+2. **Ghost.** Let the test window's Will die while the host is alive: it doesn't go home; it turns see-through, takes no damage and can't hurt enemies. The host's bar label says "ghost - find a healing pool".
+3. **Revive.** Host walks into a healing pool: the pool goes dark (used up), the ghost comes back at half health, and nobody gets healed by that pool afterwards.
+4. **Both down.** With one player a ghost, let the other die: both return to town as after a normal death.
+5. **Partner leaves while you're a ghost:** you die normally.
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–5 | | | |

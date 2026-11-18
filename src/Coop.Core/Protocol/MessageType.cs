@@ -18,5 +18,6 @@ namespace Coop.Core.Protocol
         EnemyHealth = 14,
         GoldDelta = 15,
         GoldTotal = 16,
+        Revive = 17,
     }
 }

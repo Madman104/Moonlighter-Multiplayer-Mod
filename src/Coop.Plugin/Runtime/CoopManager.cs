@@ -44,6 +44,7 @@ namespace Coop.Plugin.Runtime
             Instance = go.AddComponent<CoopManager>();
             go.AddComponent<CoopToast>();
             go.AddComponent<Sync.PlayerSync>();
+            go.AddComponent<Shared.GhostMode>();
         }
 
         /// <summary>
@@ -123,6 +124,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.TravelSync.Attach(Session);
             Dungeon.EnemySync.Attach(Session);
             Shared.GoldSync.Attach(Session);
+            Shared.GhostMode.Attach(Session);
             SessionStarted?.Invoke();
         }
 

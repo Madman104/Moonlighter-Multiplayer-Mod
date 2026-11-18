@@ -50,6 +50,9 @@ namespace Coop.Core.Protocol
         public float Y;
         public float Z;
         public SpriteLayer[] Layers;
+        public float Hp;
+        public float MaxHp;
+        public bool Ghost;
     }
 
     /// <summary>Keep-alive. Also used as the body of Pong.</summary>
