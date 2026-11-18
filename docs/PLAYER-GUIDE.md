@@ -31,6 +31,7 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 | Dungeon floors and rooms: you're always in the same room | Your loot: each player gets their own drops |
 | Enemies: same place, same health (2× health in co-op) | |
 | The shop: showcases, prices, chests, customers, cash register | |
+| Sounds: you hear each other's footsteps, swings and hits, quieter with distance | |
 
 - **Bed:** the host's bed ends the day for both players.
 - **Shop:**
@@ -53,7 +54,7 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 - If the host disconnects, the guest's bag is saved and they go back to the main menu.
 
 ## Known limits
-- Each enemy is run by the game of the nearest player, so it only attacks that player. Its projectiles only show on that player's screen.
+- Each enemy is run by the game of the nearest player, so it only chases and hurts that player (walk closer than your partner and it turns on you). Its projectiles only show on that player's screen.
 - If both players change the same showcase or chest slot at the same moment, the last change wins.
 - Town upgrades the host buys during a session appear for the guest next time they join.
 - Wanderer DLC dungeons: you travel together, but enemies there aren't shared.

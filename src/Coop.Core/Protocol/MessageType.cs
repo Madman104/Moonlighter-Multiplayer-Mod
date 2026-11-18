@@ -32,5 +32,6 @@ namespace Coop.Core.Protocol
         PlayerName = 28,
         CatchUp = 29,
         Relay = 30,
+        PlayerSound = 31,
     }
 }

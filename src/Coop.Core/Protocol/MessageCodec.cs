@@ -150,6 +150,13 @@ namespace Coop.Core.Protocol
                     case MessageType.BagSnapshot:
                         w.Write(((BagSnapshot)msg).Json ?? "");
                         break;
+                    case MessageType.PlayerSound:
+                        var snd = (PlayerSound)msg;
+                        var sn = snd.Name ?? "";
+                        w.Write(sn.Length > PlayerSound.MaxNameLength ? sn.Substring(0, PlayerSound.MaxNameLength) : sn);
+                        w.Write(snd.Volume);
+                        w.Write(snd.Stop);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -210,6 +217,8 @@ namespace Coop.Core.Protocol
                         }
                         case MessageType.PlayerName:
                             return (type, new PlayerName { Name = rd.ReadString() });
+                        case MessageType.PlayerSound:
+                            return (type, new PlayerSound { Name = rd.ReadString(), Volume = rd.ReadSingle(), Stop = rd.ReadBoolean() });
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };

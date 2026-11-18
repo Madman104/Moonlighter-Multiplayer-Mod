@@ -211,3 +211,15 @@ namespace Coop.Core.Protocol
         public byte[] Inner = new byte[0];
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>The sender's Will played (or stopped) a sound effect: footstep, swing, hurt...</summary>
+    public sealed class PlayerSound
+    {
+        public const int MaxNameLength = 64;
+        public string Name = "";
+        public float Volume = 1f;
+        public bool Stop;
+    }
+}
