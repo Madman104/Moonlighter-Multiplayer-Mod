@@ -20,7 +20,9 @@ namespace Coop.Plugin.Dungeon
     /// - When it leaves the floor in a game (picked up, fell, destroyed) the others remove it;
     ///   a partial pickup sends what's left.
     /// - A ghost's dropped bag stays local (it's that player's own items).
-    /// Two players touching the same item within the ping both get it (rare).
+    /// Two players touching the same item at once: the host decides (first claim it hears
+    /// wins) and tells the other one, whose game takes the item back out of their bag.
+    /// A player who joins late gets every item still lying on the floor (ResendTo).
     /// </summary>
     internal static class FloorItems
     {
@@ -38,6 +40,14 @@ namespace Coop.Plugin.Dungeon
 
         private static readonly Dictionary<int, Entry> Items = new Dictionary<int, Entry>();
         private static readonly Dictionary<ItemStack, int> IdOf = new Dictionary<ItemStack, int>();
+        /// <summary>Host: who got each shared item (first claim wins).</summary>
+        private static readonly Dictionary<int, int> Claimed = new Dictionary<int, int>();
+
+        private sealed class Taken { public ItemMaster Master; public int Qty; public float At; }
+
+        /// <summary>Items this game just picked up, in case the host says someone else got them.</summary>
+        private static readonly Dictionary<int, Taken> Recent = new Dictionary<int, Taken>();
+        public const int Revoked = -1;
         private static int _enemyDeath, _lootRoll, _counter, _scene = int.MinValue;
         private static bool _remoteCreate;
 
@@ -62,7 +72,7 @@ namespace Coop.Plugin.Dungeon
             session.GameMessageReceived += (type, msg) =>
             {
                 if (type == MessageType.FloorItemSpawn) OnSpawn((FloorItemSpawn)msg);
-                else if (type == MessageType.FloorItemTaken) OnTaken((FloorItemTaken)msg);
+                else if (type == MessageType.FloorItemTaken) OnTaken(session, session.LastFrom, (FloorItemTaken)msg);
             };
             session.StateChanged += st => { if (st == SessionState.Closed) Clear(); };
         }
@@ -71,6 +81,8 @@ namespace Coop.Plugin.Dungeon
         {
             Items.Clear();
             IdOf.Clear();
+            Claimed.Clear();
+            Recent.Clear();
         }
 
         private static bool Connected(out CoopLink s)
@@ -159,7 +171,18 @@ namespace Coop.Plugin.Dungeon
                 var e = kv.Value;
                 if (!OnFloor(e))
                 {
-                    if (e.Sent) s.SendGame(MessageType.FloorItemTaken, new FloorItemTaken { Id = kv.Key, Remaining = 0 });
+                    if (e.Sent)
+                    {
+                        if (e.Stack != null && InBag(e.Stack) && e.Stack.master != null)
+                            Recent[kv.Key] = new Taken { Master = e.Stack.master, Qty = e.Qty, At = Time.realtimeSinceStartup };
+                        if (s.IsHost && Claimed.TryGetValue(kv.Key, out int first) && first != s.LocalIndex)
+                            RevokeLocal(kv.Key); // a guest's claim reached us first
+                        else
+                        {
+                            if (s.IsHost) Claimed[kv.Key] = s.LocalIndex;
+                            s.SendGame(MessageType.FloorItemTaken, new FloorItemTaken { Id = kv.Key, Remaining = 0 });
+                        }
+                    }
                     (gone ?? (gone = new List<int>())).Add(kv.Key);
                     continue;
                 }
@@ -167,17 +190,8 @@ namespace Coop.Plugin.Dungeon
                 {
                     var pick = e.Stack.GetComponentInChildren<PickOnWalk>(true);
                     if (pick == null || !pick.CanPick) continue; // still flying
-                    var room = e.Room;
-                    if (room == null) continue;
-                    var p = e.Stack.transform.position;
-                    s.SendGame(MessageType.FloorItemSpawn, new FloorItemSpawn
-                    {
-                        Id = kv.Key,
-                        RoomKey = EnemyOwnership.RoomKey(room.x, room.y, room.isSecret),
-                        X = p.x,
-                        Y = p.y,
-                        Json = ToJson(new ItemSaveInfo(e.Stack)),
-                    });
+                    if (e.Room == null) continue;
+                    s.SendGame(MessageType.FloorItemSpawn, SpawnOf(kv.Key, e));
                     e.Sent = true;
                     e.Qty = e.Stack.Quantity;
                 }
@@ -188,15 +202,70 @@ namespace Coop.Plugin.Dungeon
                 }
             }
             if (gone != null) foreach (var id in gone) Forget(id, Items[id]);
+            if (Recent.Count > 0)
+            {
+                float now = Time.realtimeSinceStartup;
+                var old = new List<int>();
+                foreach (var kv in Recent) if (now - kv.Value.At > 30f) old.Add(kv.Key);
+                foreach (var id in old) Recent.Remove(id);
+            }
+        }
+
+        private static FloorItemSpawn SpawnOf(int id, Entry e)
+        {
+            var p = e.Stack.transform.position;
+            return new FloorItemSpawn
+            {
+                Id = id,
+                RoomKey = EnemyOwnership.RoomKey(e.Room.x, e.Room.y, e.Room.isSecret),
+                X = p.x,
+                Y = p.y,
+                Json = ToJson(new ItemSaveInfo(e.Stack)),
+            };
+        }
+
+        /// <summary>Host: a guest joined late; send every shared item still on this floor.</summary>
+        public static void ResendTo(CoopLink s, int guest)
+        {
+            int n = 0;
+            foreach (var kv in Items)
+                if (kv.Value.Sent && OnFloor(kv.Value) && kv.Value.Room != null)
+                {
+                    s.SendGameTo(guest, MessageType.FloorItemSpawn, SpawnOf(kv.Key, kv.Value));
+                    n++;
+                }
+            if (n > 0) CoopPlugin.Log.LogInfo($"Sent {n} floor item(s) to the late player");
+        }
+
+        /// <summary>The host gave an item we picked up to someone else: take it back out of the bag.</summary>
+        private static void RevokeLocal(int id)
+        {
+            if (!Recent.TryGetValue(id, out var t)) return;
+            Recent.Remove(id);
+            var hm = HeroMerchant.Instance;
+            if (hm == null || hm.heroMerchantInventory == null) return;
+            try
+            {
+                int removed = hm.heroMerchantInventory.RemoveItem(t.Master, t.Qty);
+                CoopPlugin.Log.LogInfo($"Shared item {t.Master.name} x{t.Qty} went to another player (removed {removed})");
+                CoopToast.Show("Your partner grabbed that first");
+            }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Could not give back a shared item: " + e.Message); }
         }
 
         // ---- receiving ----
 
         private static void OnSpawn(FloorItemSpawn msg)
         {
-            if (Items.ContainsKey(msg.Id) || !Sharing(out _)) return;
+            int scene = GameInfo.CurrentSceneId();
+            LateApply.Run("floor item " + msg.Id, () => GameInfo.CurrentSceneId() != scene || TrySpawn(msg));
+        }
+
+        private static bool TrySpawn(FloorItemSpawn msg)
+        {
+            if (Items.ContainsKey(msg.Id) || !Sharing(out _)) return true;
             var room = FindRoom(msg.RoomKey);
-            if (room == null) return;
+            if (room == null) return false;
             ItemStack stack = null;
             _remoteCreate = true;
             try
@@ -204,7 +273,7 @@ namespace Coop.Plugin.Dungeon
                 ItemSaveInfo info = null;
                 FsJSONManager.Deserialize(msg.Json, ref info, false);
                 stack = Shared.ItemFactory.Build(info);
-                if (stack == null) { CoopPlugin.Log.LogWarning("Shared floor item not known here: " + msg.Json); return; }
+                if (stack == null) { CoopPlugin.Log.LogWarning("Shared floor item not known here: " + msg.Json); return true; }
                 stack.Drop(new Vector2(msg.X, msg.Y), 0f, room.transform);
                 room.AddDropItems(new List<ItemStack> { stack });
                 Track(msg.Id, stack, room, true);
@@ -215,10 +284,21 @@ namespace Coop.Plugin.Dungeon
                 if (stack != null) Shared.ItemFactory.Destroy(stack);
             }
             finally { _remoteCreate = false; }
+            return true;
         }
 
-        private static void OnTaken(FloorItemTaken msg)
+        private static void OnTaken(CoopLink s, int from, FloorItemTaken msg)
         {
+            if (msg.Remaining == Revoked) { RevokeLocal(msg.Id); return; }
+            if (s.IsHost && msg.Remaining == 0)
+            {
+                if (Claimed.TryGetValue(msg.Id, out int first) && first != from)
+                {
+                    s.SendGameTo(from, MessageType.FloorItemTaken, new FloorItemTaken { Id = msg.Id, Remaining = Revoked });
+                    return;
+                }
+                Claimed[msg.Id] = from;
+            }
             if (!Items.TryGetValue(msg.Id, out var e)) return;
             if (!OnFloor(e)) { Forget(msg.Id, e); return; } // we took it too (same moment): keep ours
             if (msg.Remaining > 0)

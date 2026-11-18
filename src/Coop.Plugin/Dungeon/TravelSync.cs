@@ -126,6 +126,10 @@ namespace Coop.Plugin.Dungeon
             CoopPlugin.Log.LogInfo($"Partner joined late: sending {dm.culture} floor {dm.level} again");
             s.SendGameTo(guest, MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)dm.culture, Level = (byte)dm.level, Replay = false });
             FloorSync.SendCurrentFloor(s, guest);
+            // What's already happened on this floor (applied once the guest has built it).
+            FloorItems.ResendTo(s, guest);
+            ChestSync.ResendTo(s, guest);
+            RoomObjectSync.ResendTo(s, guest);
         }
 
         private static bool HasEmblemPortal(GameManager gm)

@@ -201,3 +201,11 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 3. Take items, close: the other window's chest now has the same items left.
 4. Break a pot in one window: it breaks in the other too, and any drop appears once (shared floor item).
 5. Log warnings to look for: "Could not apply a shared chest", "Could not break a shared breakable", "Could not tag mimics".
+
+## Boss chests, shrines, pools, races, late join (mod 1.5.0)
+1. Kill a boss: the reward chests are the same types with the same contents in both windows.
+2. Press a shrine in one window: the doors open in the other window too.
+3. Drink from a healing pool in one window: it darkens in the other; the other player gets only what's left.
+4. Both players walk onto the same item at the same moment: only one keeps it; the other sees "Your partner grabbed that first" and it leaves their bag.
+5. Both open the same chest at the same moment: the later one sees "Your partner was already using that chest" on closing, and ends up with the first one's content.
+6. Late join: host goes into the dungeon, kills things, leaves loot, opens a chest, uses a pool; then the guest joins. The guest sees the same loot, chest content and pool level.

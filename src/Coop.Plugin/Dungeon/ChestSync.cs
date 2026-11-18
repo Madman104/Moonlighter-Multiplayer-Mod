@@ -23,8 +23,11 @@ namespace Coop.Plugin.Dungeon
     ///   so every game spawns the same chests; mimics get enemy ids so they are shared enemies.
     /// - The host sends each chest's content once per floor; the others replace theirs (covers
     ///   anything rolled differently, e.g. amulets one player already owns).
+    /// - Boss reward chests are rolled the same way (PostBossSpawnEnemyController.SpawnChests seeded).
     /// - One player at a time: opening a chest locks it for the others until it is closed.
-    ///   On closing, the content is sent and everyone else takes it.
+    ///   On closing, the content is sent and everyone else takes it. If two open it at once,
+    ///   the host decides: the loser's game sends nothing on close and takes the winner's content.
+    /// - A player who joins late gets every chest's content on the floor (ResendTo).
     /// Chests are identified by room and their place in room.roomChests (spawn order).
     /// </summary>
     internal static class ChestSync
@@ -36,6 +39,8 @@ namespace Coop.Plugin.Dungeon
         private static readonly Dictionary<long, int> LockedBy = new Dictionary<long, int>();
         private static readonly HashSet<long> SentInitial = new HashSet<long>();
         private static readonly Dictionary<long, string> Pending = new Dictionary<long, string>();
+        private static readonly HashSet<long> LocalOpen = new HashSet<long>();
+        private static readonly HashSet<long> Denied = new HashSet<long>();
         private static int _scene = int.MinValue;
 
         public static void Apply(Harmony harmony)
@@ -43,6 +48,11 @@ namespace Coop.Plugin.Dungeon
             harmony.Patch(AccessTools.Method(typeof(DungeonRoom), nameof(DungeonRoom.SpawnChests)),
                 prefix: new HarmonyMethod(typeof(ChestSync), nameof(SpawnPrefix)),
                 finalizer: new HarmonyMethod(typeof(ChestSync), nameof(SpawnFinalizer)));
+            var boss = AccessTools.Method(typeof(PostBossSpawnEnemyController), nameof(PostBossSpawnEnemyController.SpawnChests));
+            if (boss != null)
+                harmony.Patch(boss,
+                    prefix: new HarmonyMethod(typeof(ChestSync), nameof(BossSpawnPrefix)),
+                    finalizer: new HarmonyMethod(typeof(ChestSync), nameof(BossSpawnFinalizer)));
             harmony.Patch(AccessTools.Method(typeof(Chest), nameof(Chest.OpenChest)),
                 prefix: new HarmonyMethod(typeof(ChestSync), nameof(OpenPrefix)),
                 postfix: new HarmonyMethod(typeof(ChestSync), nameof(OpenPostfix)));
@@ -56,7 +66,7 @@ namespace Coop.Plugin.Dungeon
             Clear();
             session.GameMessageReceived += (type, msg) =>
             {
-                if (type == MessageType.ChestUse) OnUse(session.LastFrom, (ChestUse)msg);
+                if (type == MessageType.ChestUse) OnUse(session, session.LastFrom, (ChestUse)msg);
                 else if (type == MessageType.ChestContents) OnContents((ChestContents)msg);
             };
             session.PeerLeft += i =>
@@ -73,6 +83,8 @@ namespace Coop.Plugin.Dungeon
             LockedBy.Clear();
             SentInitial.Clear();
             Pending.Clear();
+            LocalOpen.Clear();
+            Denied.Clear();
         }
 
         private static bool Sharing(out CoopLink s)
@@ -122,6 +134,23 @@ namespace Coop.Plugin.Dungeon
             return __exception;
         }
 
+        private static void BossSpawnPrefix(out SpawnState __state)
+        {
+            __state = new SpawnState();
+            var dm = DungeonManager.Instance;
+            if (!Sharing(out _) || dm == null) return;
+            var b = dm.bossRoom;
+            __state.Saved = UnityEngine.Random.state;
+            __state.Seeded = true;
+            UnityEngine.Random.InitState(RoomSeed.For((int)dm.culture, dm.level, b != null ? b.x : 0, b != null ? b.y : 0, false) ^ 0xB055);
+        }
+
+        private static Exception BossSpawnFinalizer(Exception __exception, SpawnState __state)
+        {
+            if (__state != null && __state.Seeded) UnityEngine.Random.state = __state.Saved;
+            return __exception;
+        }
+
         // ---- host: initial content ----
 
         /// <summary>Every frame from CoopManager.</summary>
@@ -143,19 +172,38 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
-        private static void Send(CoopLink s, DungeonRoom room, int index, Chest chest)
+        /// <summary>Host: a guest joined late; send every chest on this floor to them.</summary>
+        public static void ResendTo(CoopLink s, int guest)
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null || !SharedCultures.InSharedDungeon()) return;
+            var rooms = new List<DungeonRoom>(dm.dungeonRooms);
+            if (dm.bossRoom != null && !rooms.Contains(dm.bossRoom)) rooms.Add(dm.bossRoom);
+            int n = 0;
+            foreach (var room in rooms)
+            {
+                if (room == null || room.roomChests == null) continue;
+                for (int i = 0; i < room.roomChests.Count && i < 256; i++)
+                    if (room.roomChests[i] != null) { Send(s, room, i, room.roomChests[i], guest); n++; }
+            }
+            if (n > 0) CoopPlugin.Log.LogInfo($"Sent {n} chest(s) to the late player");
+        }
+
+        private static void Send(CoopLink s, DungeonRoom room, int index, Chest chest, int to = -1)
         {
             try
             {
                 var snap = new ChestSnapshot();
                 foreach (var stack in chest.ChestContent) snap.items.Add(stack != null ? new ItemSaveInfo(stack) : new ItemSaveInfo());
                 FsJSONManager.Serialize(snap, out fsData data);
-                s.SendGame(MessageType.ChestContents, new ChestContents
+                var msg = new ChestContents
                 {
                     RoomKey = EnemyOwnership.RoomKey(room.x, room.y, room.isSecret),
                     Index = (byte)index,
                     Json = data.ToString(),
-                });
+                };
+                if (to >= 0) s.SendGameTo(to, MessageType.ChestContents, msg);
+                else s.SendGame(MessageType.ChestContents, msg);
             }
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not send a chest: " + e.Message); }
         }
@@ -174,7 +222,8 @@ namespace Coop.Plugin.Dungeon
         private static void OpenPostfix(Chest __instance, bool __state)
         {
             if (__state || __instance == null || !__instance.isChestOpened) return;
-            if (!Sharing(out var s) || !IdOf(__instance, out var room, out int index, out _)) return;
+            if (!Sharing(out var s) || !IdOf(__instance, out var room, out int index, out long id)) return;
+            LocalOpen.Add(id);
             s.SendGame(MessageType.ChestUse, new ChestUse
             {
                 RoomKey = EnemyOwnership.RoomKey(room.x, room.y, room.isSecret), Index = (byte)index, Open = true,
@@ -186,6 +235,14 @@ namespace Coop.Plugin.Dungeon
         private static void ClosePostfix(Chest __instance, bool __state)
         {
             if (!__state || !Sharing(out var s) || !IdOf(__instance, out var room, out int index, out long id)) return;
+            LocalOpen.Remove(id);
+            if (Denied.Remove(id))
+            {
+                // Someone else had it first: their close decides the content.
+                if (Pending.TryGetValue(id, out var theirs)) { Pending.Remove(id); ApplyJson(__instance, theirs); }
+                CoopToast.Show("Your partner was already using that chest");
+                return;
+            }
             Send(s, room, index, __instance);
             s.SendGame(MessageType.ChestUse, new ChestUse
             {
@@ -196,22 +253,40 @@ namespace Coop.Plugin.Dungeon
 
         // ---- receiving ----
 
-        private static void OnUse(int from, ChestUse msg)
+        private static void OnUse(CoopLink s, int from, ChestUse msg)
         {
             long id = Id(msg.RoomKey, msg.Index);
-            if (msg.Open) LockedBy[id] = from;
-            else LockedBy.Remove(id);
+            if (!msg.Open) { LockedBy.Remove(id); return; }
+            if (s.IsHost)
+            {
+                bool takenByOther = LocalOpen.Contains(id) || (LockedBy.TryGetValue(id, out int owner) && owner != from);
+                if (takenByOther)
+                {
+                    // Tell the later opener it lost (an "open" from us = someone else holds it).
+                    s.SendGameTo(from, MessageType.ChestUse, new ChestUse { RoomKey = msg.RoomKey, Index = msg.Index, Open = true });
+                    return;
+                }
+            }
+            else if (from == 0 && LocalOpen.Contains(id)) Denied.Add(id); // only the host decides who holds it
+            LockedBy[id] = from;
         }
 
         private static void OnContents(ChestContents msg)
         {
-            if (!Sharing(out _)) return;
+            int scene = GameInfo.CurrentSceneId();
+            LateApply.Run("chest " + msg.Index, () => GameInfo.CurrentSceneId() != scene || TryContents(msg));
+        }
+
+        private static bool TryContents(ChestContents msg)
+        {
+            if (!Sharing(out _)) return true;
             var room = FloorItems.FindRoom(msg.RoomKey);
-            if (room == null || room.roomChests == null || msg.Index >= room.roomChests.Count) return;
+            if (room == null || room.roomChests == null || msg.Index >= room.roomChests.Count) return false; // boss chests appear later
             var chest = room.roomChests[msg.Index];
-            if (chest == null) return;
-            if (chest.isChestOpened) { Pending[Id(msg.RoomKey, msg.Index)] = msg.Json; return; } // both opened at once: ours is sent on close
+            if (chest == null) return false;
+            if (chest.isChestOpened) { Pending[Id(msg.RoomKey, msg.Index)] = msg.Json; return true; } // applied on close if we lost the chest
             ApplyJson(chest, msg.Json);
+            return true;
         }
 
         private static void ApplyJson(Chest chest, string json)

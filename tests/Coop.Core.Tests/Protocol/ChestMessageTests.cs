@@ -28,6 +28,20 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void RoomObject_round_trips()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.RoomObject,
+                new RoomObject { RoomKey = 3, Kind = RoomObject.Pool, X = 1f, Y = 2f, Value = 0.25f }));
+            Assert.Equal(MessageType.RoomObject, t);
+            var r = Assert.IsType<RoomObject>(m);
+            Assert.Equal(3, r.RoomKey);
+            Assert.Equal(RoomObject.Pool, r.Kind);
+            Assert.Equal(1f, r.X);
+            Assert.Equal(2f, r.Y);
+            Assert.Equal(0.25f, r.Value);
+        }
+
+        [Fact]
         public void BreakableBroken_round_trips()
         {
             var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.BreakableBroken, new BreakableBroken { RoomKey = 9, X = 12.5f, Y = -40f }));

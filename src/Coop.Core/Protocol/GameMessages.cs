@@ -274,3 +274,22 @@ namespace Coop.Core.Protocol
         public float Y;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// State of a room object, found by its position relative to the room.
+    /// Shrine: Value 1 = used (doors opened). Pool: Value = fraction of healing left (0..1).
+    /// </summary>
+    public sealed class RoomObject
+    {
+        public const byte Shrine = 1;
+        public const byte Pool = 2;
+
+        public int RoomKey;
+        public byte Kind;
+        public float X;
+        public float Y;
+        public float Value;
+    }
+}

@@ -177,6 +177,10 @@ namespace Coop.Core.Protocol
                         var bb = (BreakableBroken)msg;
                         w.Write(bb.RoomKey); w.Write(bb.X); w.Write(bb.Y);
                         break;
+                    case MessageType.RoomObject:
+                        var ro = (RoomObject)msg;
+                        w.Write(ro.RoomKey); w.Write(ro.Kind); w.Write(ro.X); w.Write(ro.Y); w.Write(ro.Value);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -249,6 +253,8 @@ namespace Coop.Core.Protocol
                             return (type, new ChestContents { RoomKey = rd.ReadInt32(), Index = rd.ReadByte(), Json = rd.ReadString() });
                         case MessageType.BreakableBroken:
                             return (type, new BreakableBroken { RoomKey = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle() });
+                        case MessageType.RoomObject:
+                            return (type, new RoomObject { RoomKey = rd.ReadInt32(), Kind = rd.ReadByte(), X = rd.ReadSingle(), Y = rd.ReadSingle(), Value = rd.ReadSingle() });
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };

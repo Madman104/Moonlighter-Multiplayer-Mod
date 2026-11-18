@@ -9,7 +9,7 @@ namespace Coop.Plugin
     public class CoopPlugin : BaseUnityPlugin
     {
         public const string Guid = "com.coop.moonlighter";
-        public const string ModVersion = "1.4.0";
+        public const string ModVersion = "1.5.0";
 
         internal static ManualLogSource Log;
 
@@ -33,6 +33,7 @@ namespace Coop.Plugin
             Dungeon.FloorItems.Apply(_harmony);
             Dungeon.BreakableSync.Apply(_harmony);
             Dungeon.ChestSync.Apply(_harmony);
+            Dungeon.RoomObjectSync.Apply(_harmony);
             Sync.PartnerSounds.Apply(_harmony);
             Shared.GoldSync.Apply(_harmony);
             Shared.SaveGuard.Apply(_harmony);

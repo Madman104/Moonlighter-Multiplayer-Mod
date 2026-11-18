@@ -133,6 +133,8 @@ namespace Coop.Plugin.Runtime
             Dungeon.FloorItems.Attach(Session);
             Dungeon.BreakableSync.Attach(Session);
             Dungeon.ChestSync.Attach(Session);
+            Dungeon.RoomObjectSync.Attach(Session);
+            Dungeon.LateApply.Clear();
             Shared.GoldSync.Attach(Session);
             Shared.GhostMode.Attach(Session);
             Shared.DaySync.Attach(Session);
@@ -178,6 +180,8 @@ namespace Coop.Plugin.Runtime
             Sync.PartnerSounds.Tick();
             Dungeon.FloorItems.Tick();
             Dungeon.ChestSync.Tick();
+            Dungeon.RoomObjectSync.Tick();
+            Dungeon.LateApply.Tick();
             Shared.GoldSync.Tick();
             Shared.DaySync.Tick();
             Shared.WorldSync.Tick();

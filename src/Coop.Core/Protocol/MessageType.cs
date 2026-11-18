@@ -38,5 +38,6 @@ namespace Coop.Core.Protocol
         ChestUse = 34,
         ChestContents = 35,
         BreakableBroken = 36,
+        RoomObject = 37,
     }
 }
