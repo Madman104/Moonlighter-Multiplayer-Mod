@@ -10,5 +10,9 @@ namespace Coop.Core.Protocol
         Pong = 6,
         Bye = 7,
         SpriteDef = 8,
+        FloorLayout = 9,
+        DungeonTravel = 10,
+        TownTravel = 11,
+        RoomChange = 12,
     }
 }

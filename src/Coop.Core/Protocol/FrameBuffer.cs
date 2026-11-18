@@ -9,7 +9,7 @@ namespace Coop.Core.Protocol
     /// </summary>
     public sealed class FrameBuffer
     {
-        public const int MaxFrameSize = 65536;
+        public const int MaxFrameSize = 1 << 20;
 
         private byte[] _buf = new byte[4096];
         private int _start;

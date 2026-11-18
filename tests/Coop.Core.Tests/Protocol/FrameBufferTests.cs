@@ -54,7 +54,7 @@ namespace Coop.Core.Tests.Protocol
         public void Length_prefix_over_limit_throws()
         {
             var buf = new FrameBuffer();
-            var prefix = BitConverter.GetBytes(70000);
+            var prefix = BitConverter.GetBytes(FrameBuffer.MaxFrameSize + 1);
             buf.Append(prefix, 0, 4);
             Assert.Throws<InvalidDataException>(() => buf.TryReadFrame(out _));
         }

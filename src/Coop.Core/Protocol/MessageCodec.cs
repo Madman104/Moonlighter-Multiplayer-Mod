@@ -48,6 +48,30 @@ namespace Coop.Core.Protocol
                         break;
                     case MessageType.Bye:
                         break;
+                    case MessageType.FloorLayout:
+                        var fl = (FloorLayout)msg;
+                        w.Write(fl.Culture);
+                        w.Write(fl.Floor);
+                        w.Write(fl.Json ?? "");
+                        break;
+                    case MessageType.DungeonTravel:
+                        var dt = (DungeonTravel)msg;
+                        w.Write(dt.Culture);
+                        w.Write(dt.Level);
+                        w.Write(dt.Replay);
+                        break;
+                    case MessageType.TownTravel:
+                        w.Write(((TownTravel)msg).FromEmblem);
+                        break;
+                    case MessageType.RoomChange:
+                        var rc = (RoomChange)msg;
+                        w.Write(rc.FromX);
+                        w.Write(rc.FromY);
+                        w.Write(rc.ToX);
+                        w.Write(rc.ToY);
+                        w.Write(rc.DoorIndex);
+                        w.Write((byte)((rc.Special ? 1 : 0) | (rc.TeleportToLastDoor ? 2 : 0)));
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -87,6 +111,23 @@ namespace Coop.Core.Protocol
                             return (type, new SpriteDef { Id = rd.ReadUInt16(), Key = rd.ReadString() });
                         case MessageType.Bye:
                             return (type, null);
+                        case MessageType.FloorLayout:
+                            return (type, new FloorLayout { Culture = rd.ReadByte(), Floor = rd.ReadByte(), Json = rd.ReadString() });
+                        case MessageType.DungeonTravel:
+                            return (type, new DungeonTravel { Culture = rd.ReadByte(), Level = rd.ReadByte(), Replay = rd.ReadBoolean() });
+                        case MessageType.TownTravel:
+                            return (type, new TownTravel { FromEmblem = rd.ReadBoolean() });
+                        case MessageType.RoomChange:
+                            var rc = new RoomChange
+                            {
+                                FromX = rd.ReadInt16(), FromY = rd.ReadInt16(),
+                                ToX = rd.ReadInt16(), ToY = rd.ReadInt16(),
+                                DoorIndex = rd.ReadSByte(),
+                            };
+                            byte f = rd.ReadByte();
+                            rc.Special = (f & 1) != 0;
+                            rc.TeleportToLastDoor = (f & 2) != 0;
+                            return (type, rc);
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
                     }

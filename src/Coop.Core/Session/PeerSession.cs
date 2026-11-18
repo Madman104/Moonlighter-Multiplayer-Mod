@@ -41,6 +41,9 @@ namespace Coop.Core.Session
         public event Action<PlayerState> PlayerStateReceived;
         public event Action<SpriteDef> SpriteDefReceived;
 
+        /// <summary>Gameplay messages (type 9 and up), delivered only while Connected.</summary>
+        public event Action<MessageType, object> GameMessageReceived;
+
         public PeerSession(ITransport transport, Hello local, bool ignoreDlc, Func<double> clock)
         {
             _transport = transport;
@@ -98,6 +101,13 @@ namespace Coop.Core.Session
         {
             if (State != SessionState.Connected) return;
             Send(MessageType.SpriteDef, def, true);
+        }
+
+        /// <summary>Sends a gameplay message reliably. Dropped unless Connected.</summary>
+        public void SendGame(MessageType type, object msg)
+        {
+            if (State != SessionState.Connected) return;
+            Send(type, msg, true);
         }
 
         /// <summary>Leaves the session and tells the other player.</summary>
@@ -159,6 +169,9 @@ namespace Coop.Core.Session
                     break;
                 case MessageType.SpriteDef when State == SessionState.Connected:
                     SpriteDefReceived?.Invoke((SpriteDef)msg);
+                    break;
+                case MessageType t when (byte)t >= (byte)MessageType.FloorLayout && State == SessionState.Connected:
+                    GameMessageReceived?.Invoke(type, msg);
                     break;
                 // Pong only refreshes _lastReceive; anything out of order is ignored.
             }
