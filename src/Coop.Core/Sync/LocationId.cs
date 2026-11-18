@@ -1,19 +1,21 @@
 namespace Coop.Core.Sync
 {
     /// <summary>
-    /// Where a player's Will is, as far as showing the other player goes.
-    /// Stage 1 shares only the town: dungeon layouts are still generated separately on each
-    /// PC, so a Will in a dungeon is never shown to the other player yet.
+    /// Where a player's Will is, for deciding whether to draw the other player.
+    /// Town = 1; a dungeon floor = 100 + culture * 10 + floor (both players share the floor
+    /// layout, so world positions match); anything else (menu, loading) = None.
     /// </summary>
     public static class LocationId
     {
         public const int None = -1;
         public const int Town = 1;
 
-        public static int From(bool hasWill, bool townLoaded, bool dungeonLoaded)
+        public static int From(bool hasWill, bool townLoaded, bool dungeonLoaded, int culture, int floor)
         {
-            if (!hasWill || dungeonLoaded || !townLoaded) return None;
-            return Town;
+            if (!hasWill) return None;
+            if (dungeonLoaded)
+                return culture >= 0 && floor >= 0 ? 100 + culture * 10 + floor : None;
+            return townLoaded ? Town : None;
         }
     }
 }

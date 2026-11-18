@@ -8,21 +8,13 @@ namespace Coop.Core.Tests.Sync
         [Fact]
         public void Town_only_is_the_town_location()
         {
-            Assert.Equal(LocationId.Town, LocationId.From(hasWill: true, townLoaded: true, dungeonLoaded: false));
+            Assert.Equal(LocationId.Town, LocationId.From(true, townLoaded: true, dungeonLoaded: false, 0, 0));
         }
 
         [Fact]
-        public void Any_dungeon_is_not_shared_yet()
+        public void Dungeon_wins_while_both_scenes_are_loaded()
         {
-            Assert.Equal(LocationId.None, LocationId.From(true, townLoaded: false, dungeonLoaded: true));
-            Assert.Equal(LocationId.None, LocationId.From(true, townLoaded: true, dungeonLoaded: true));
-        }
-
-        [Fact]
-        public void No_will_or_nothing_loaded_is_none()
-        {
-            Assert.Equal(LocationId.None, LocationId.From(false, true, false));
-            Assert.Equal(LocationId.None, LocationId.From(true, false, false));
+            Assert.Equal(100 + 10 + 0, LocationId.From(true, townLoaded: true, dungeonLoaded: true, 1, 0));
         }
 
         [Fact]
