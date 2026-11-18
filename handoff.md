@@ -54,3 +54,22 @@ The old stage branches can be deleted after that. `feat/coop-stage4b` (shared ba
 - Shop customers' sprites must be loaded in the guest's game. If some customers are invisible for the guest, the log says "Customer sprite not loaded here".
 - The guest's bed gives no bed benefits.
 - The guest's save doesn't keep item discoveries, recipes or achievements from co-op.
+
+## Review (1.0)
+A fresh reviewer read everything since the shared bag (`9c39f1c..HEAD`).
+- **Fixed (commit `a4dc767`), critical:**
+  - The guest's save could get the host's world written into it.
+  - A ghost's dropped bag was lost if the host disconnected.
+- **Fixed, important:**
+  - Shop updates could undo the other player's changes and destroy items. Now only changed slots are sent; the host wins a clash.
+  - The guest could get stuck on the way to the main menu.
+  - Paused enemies didn't get their own state back.
+  - A missing host floor made the games drift apart; the guest now leaves the session instead.
+- **Fixed, minor:** see the commit message.
+- **Not a bug (checked):** "the guest's register sale never completes". The guest has no customers, so their register tray is always empty; sales run on the host's register.
+- **Left, minor:**
+  - A gold total sent just before the guest's purchase arrives can briefly show old gold. Debt covers it.
+  - A dead enemy on the runner's side can move on the follower's screen for up to 1 s, until the death arrives.
+  - Ownership doesn't check that the guest is in the same room (harmless; the host resumes the enemies).
+  - `HostEmblemTrip` is set before the portal trip is confirmed.
+- **New behaviour from the fixes:** a guest with no save of their own can't join. They need to start a game first.
