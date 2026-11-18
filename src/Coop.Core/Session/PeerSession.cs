@@ -35,6 +35,9 @@ namespace Coop.Core.Session
         public SessionState State { get; private set; } = SessionState.Idle;
         public string CloseReason { get; private set; }
         public int PlayerIndex { get; private set; } = -1;
+
+        /// <summary>Host only: the player number given to this guest in Welcome (1..3).</summary>
+        public byte AssignedIndex { get; set; } = 1;
         public bool IsHost => _transport.IsHost;
 
         public event Action<SessionState> StateChanged;
@@ -158,7 +161,7 @@ namespace Coop.Core.Session
                         return;
                     }
                     PlayerIndex = 0;
-                    Send(MessageType.Welcome, new Welcome { PlayerIndex = 1 }, true);
+                    Send(MessageType.Welcome, new Welcome { PlayerIndex = AssignedIndex }, true);
                     SetState(SessionState.Connected);
                     break;
                 case MessageType.Welcome when !_transport.IsHost && State == SessionState.Handshaking:

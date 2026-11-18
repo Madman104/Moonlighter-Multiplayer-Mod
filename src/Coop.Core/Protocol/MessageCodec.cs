@@ -75,6 +75,12 @@ namespace Coop.Core.Protocol
                     case MessageType.PlayerName:
                         w.Write(((PlayerName)msg).Name ?? "");
                         break;
+                    case MessageType.Relay:
+                        var rl = (Relay)msg;
+                        w.Write(rl.From);
+                        w.Write((rl.Inner ?? new byte[0]).Length);
+                        w.Write(rl.Inner ?? new byte[0]);
+                        break;
                     case MessageType.EnemyOwners:
                         var eo = (EnemyOwners)msg;
                         var owned = eo.GuestOwned ?? new ushort[0];
@@ -202,6 +208,14 @@ namespace Coop.Core.Protocol
                         }
                         case MessageType.PlayerName:
                             return (type, new PlayerName { Name = rd.ReadString() });
+                        case MessageType.Relay:
+                        {
+                            var rl = new Relay { From = rd.ReadByte() };
+                            int rn = rd.ReadInt32();
+                            if (rn < 0 || rn > FrameBuffer.MaxFrameSize) throw new InvalidDataException("bad relay size");
+                            rl.Inner = rd.ReadBytes(rn);
+                            return (type, rl);
+                        }
                         case MessageType.EnemyOwners:
                         {
                             var eo = new EnemyOwners { Key = rd.ReadInt32() };

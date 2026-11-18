@@ -200,3 +200,13 @@ namespace Coop.Core.Protocol
         }
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Host → guest: a message another player sent, forwarded with its sender's number.</summary>
+    public sealed class Relay
+    {
+        public byte From;
+        public byte[] Inner = new byte[0];
+    }
+}

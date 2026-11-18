@@ -59,6 +59,21 @@ namespace Coop.Core.Net
             return new TcpTransport(true, l, null, null);
         }
 
+        /// <summary>A guest connection accepted by TcpGuestListener (raises Connected on first Poll).</summary>
+        internal static TcpTransport FromAccepted(Socket s)
+        {
+            s.Blocking = false;
+            s.NoDelay = true;
+            var t = new TcpTransport(true, null, s, null)
+            {
+                RemoteIsLoopback = s.RemoteEndPoint is IPEndPoint ep && IPAddress.IsLoopback(ep.Address),
+                _acceptedPending = true,
+            };
+            return t;
+        }
+
+        private bool _acceptedPending;
+
         public static TcpTransport Connect(string host, int port)
         {
             var s = NewSocket();
@@ -97,7 +112,8 @@ namespace Coop.Core.Net
         public void Poll()
         {
             if (_closed) return;
-            if (IsHost) AcceptPending();
+            if (_acceptedPending) { _acceptedPending = false; _connected = true; Connected?.Invoke(); }
+            if (IsHost && _listener != null) AcceptPending();
             if (_connecting) CheckConnect();
             if (!_connected) return;
             Flush();
@@ -217,6 +233,48 @@ namespace Coop.Core.Net
             foreach (var a in Dns.GetHostAddresses(host))
                 if (a.AddressFamily == AddressFamily.InterNetwork) return a;
             throw new ArgumentException("No IPv4 address for " + host);
+        }
+    }
+
+    /// <summary>
+    /// Host side of direct-IP co-op: listens on a port and hands out one TcpTransport per guest.
+    /// </summary>
+    public sealed class TcpGuestListener : IGuestListener
+    {
+        private readonly Socket _listener;
+        private readonly Queue<TcpTransport> _accepted = new Queue<TcpTransport>();
+
+        public TcpGuestListener(int port)
+        {
+            _listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _listener.Bind(new IPEndPoint(IPAddress.Any, port));
+            _listener.Listen(4);
+            _listener.Blocking = false;
+        }
+
+        public void Poll()
+        {
+            while (true)
+            {
+                Socket s;
+                try { s = _listener.Accept(); }
+                catch (SocketException) { return; }
+                catch (ObjectDisposedException) { return; }
+                _accepted.Enqueue(TcpTransport.FromAccepted(s));
+            }
+        }
+
+        public bool TryAccept(out ITransport transport)
+        {
+            if (_accepted.Count > 0) { transport = _accepted.Dequeue(); return true; }
+            transport = null;
+            return false;
+        }
+
+        public void Dispose()
+        {
+            try { _listener.Close(); } catch (SocketException) { }
+            while (_accepted.Count > 0) _accepted.Dequeue().Dispose();
         }
     }
 }
