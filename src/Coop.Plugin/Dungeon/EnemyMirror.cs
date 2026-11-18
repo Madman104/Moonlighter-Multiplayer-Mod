@@ -79,7 +79,7 @@ namespace Coop.Plugin.Dungeon
             session.StateChanged += st => { if (st == SessionState.Closed) Reset(); };
         }
 
-        private static SpriteNameMap NamesOf(int player)
+        internal static SpriteNameMap NamesOf(int player)
         {
             if (!Names.TryGetValue(player, out var m)) Names[player] = m = new SpriteNameMap();
             return m;
@@ -228,7 +228,7 @@ namespace Coop.Plugin.Dungeon
 
         // ---- running side ----
 
-        private static EntityState Describe(CoopLink s, Transform root, ushort id)
+        internal static EntityState Describe(CoopLink s, Transform root, ushort id)
         {
             var renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
             var layers = new List<SpriteLayer>();
@@ -383,9 +383,11 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
-        private static void DrawLayers(GameObject go, Remote remote)
+        private static void DrawLayers(GameObject go, Remote remote) => DrawLayers(go, remote.State, remote.From);
+
+        /// <summary>Draws a sprite-only copy of an entity as the runner described it.</summary>
+        internal static void DrawLayers(GameObject go, EntityState st, int from)
         {
-            var st = remote.State;
             var like = HeroMerchant.Instance != null ? HeroMerchant.Instance.GetComponentInChildren<SpriteRenderer>() : null;
             foreach (var layer in st.Layers)
             {
@@ -399,7 +401,7 @@ namespace Coop.Plugin.Dungeon
                     if (like != null) { nr.sortingLayerID = like.sortingLayerID; nr.sharedMaterial = like.sharedMaterial; }
                 }
                 var r = child.GetComponent<SpriteRenderer>();
-                var sprite = layer.Visible ? Resolve(NamesOf(remote.From).GetKey(layer.SpriteId)) : null;
+                var sprite = layer.Visible ? Resolve(NamesOf(from).GetKey(layer.SpriteId)) : null;
                 r.enabled = sprite != null;
                 if (sprite == null) continue;
                 r.sprite = sprite;
@@ -417,7 +419,7 @@ namespace Coop.Plugin.Dungeon
             RendererCache.Clear();
         }
 
-        private static Sprite Resolve(string key)
+        internal static Sprite Resolve(string key)
         {
             if (key == null) return null;
             if (_spriteCache == null || (!_spriteCache.ContainsKey(key) && Time.realtimeSinceStartup >= _nextCacheRefresh))

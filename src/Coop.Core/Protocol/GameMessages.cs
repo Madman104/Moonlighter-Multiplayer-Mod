@@ -165,6 +165,7 @@ namespace Coop.Core.Protocol
         public const byte ShopVisitors = 1;
         public const byte Enemies = 2;
         public const byte Citizens = 3;
+        public const byte Projectiles = 4;
 
         public byte Group;
         /// <summary>Group-specific key. Enemies: EnemyOwnership.RoomKey of the room.</summary>
@@ -294,4 +295,42 @@ namespace Coop.Core.Protocol
         public float Y;
         public float Value;
     }
+}
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// An enemy run by the sender's game hit another player's figure there. Sent to everyone;
+    /// only the Target player takes the damage.
+    /// </summary>
+    public sealed class PartnerHit
+    {
+        public byte Target;
+        public float Damage;
+        public string Source = "";
+    }
+
+    /// <summary>An enemy summoned another (AI spawn) in the sender's game; others spawn the same one.</summary>
+    public sealed class SummonSpawned
+    {
+        public int RoomKey;
+        public byte Id;
+        public string Name = "";
+        public int Tile;
+        public float X;
+        public float Y;
+    }
+
+    /// <summary>A summoned enemy vanished without dying (timed out, merged...): others remove theirs.</summary>
+    public sealed class SummonGone
+    {
+        public int RoomKey;
+        public byte Id;
+    }
+}
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Either way: the town's upgrades and the banker, as JSON (last change wins).</summary>
+    public sealed class TownState : PackedText { }
 }

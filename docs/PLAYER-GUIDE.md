@@ -32,7 +32,9 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 | Loot on the floor: one copy for everyone, whoever picks it up first gets it | |
 | Dungeon chests, including boss reward chests (one player at a time), and pots/crates: break or empty them once for everyone | |
 | Shrines and healing pools: used by one player = used for everyone | |
-| Enemies: same place, same health (2× health in co-op) | |
+| Town upgrades and the banker: show up for everyone straight away | |
+| Enemies: same place, same health (2× health in co-op), including summoned ones and enemy-wave rooms | |
+| Enemy attacks and projectiles: everyone sees them, and they can hit anyone | |
 | The shop: showcases, prices, chests, customers, cash register | |
 | Sounds: you hear each other's footsteps, swings and hits, quieter with distance | |
 
@@ -57,10 +59,11 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 - If the host disconnects, the guest's bag is saved and they go back to the main menu.
 
 ## Known limits
-- Each enemy is run by the game of the nearest player, so it only chases and hurts that player (walk closer than your partner and it turns on you). Its projectiles only show on that player's screen.
+- Each enemy is run by the game of the nearest player, so it chases that player (walk closer than your partner and it turns on you). Its attacks can still hit anyone in the way. Hits on you are worked out on that player's screen, so with lag a hit can land a moment after it looked like a miss.
+- Enemy-wave rooms: the wave enemies are shared, but the reward chest and the locked doors are only in the game of the player who started the waves.
 - If both players change the same showcase or chest slot at the same moment, the last change wins.
-- Town upgrades the host buys during a session appear for the guest next time they join.
-- Wanderer DLC dungeons: you travel together, but enemies there aren't shared.
+- New town buildings appear the next time you walk into town (their effects work straight away).
+- Wanderer DLC dungeons are shared, apart from its in-between levels (the lift and the falling floor). It's untested: if DLC runs misbehave, set `[Co-op] ShareWandererDungeons = false` on every PC.
 
 ## Settings
 In the pause menu under **CO-OP**: **NAMES** (on/off) and **PARTNER SOUNDS** (100% / 50% / off).
@@ -74,6 +77,7 @@ Everything else is in `BepInEx\config\com.coop.moonlighter.cfg` (made on first s
 | `[Sound] PartnerSoundRange` | 3 | How far their sounds carry, in half-screens |
 | `[Co-op] EnemyHandoffDistance` | 24 | Host only: how much closer you must be before an enemy turns on you (16 = one tile) |
 | `[Updates] CheckForUpdates` | true | On start, look for a newer release on GitHub and say so |
+| `[Co-op] ShareWandererDungeons` | true | Share the Wanderer DLC dungeon (must match on every PC) |
 | `[Connection] Port` | 27460 | Port for IP play |
 
 ## Troubleshooting

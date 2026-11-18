@@ -14,6 +14,7 @@ namespace Coop.Plugin
         public static ConfigEntry<float> PartnerSoundRange;
         public static ConfigEntry<float> EnemyHandoffDistance;
         public static ConfigEntry<bool> CheckForUpdates;
+        public static ConfigEntry<bool> ShareWandererDungeons;
 
         public static void Bind(ConfigFile cfg)
         {
@@ -35,6 +36,8 @@ namespace Coop.Plugin
             EnemyHandoffDistance = cfg.Bind("Co-op", "EnemyHandoffDistance", 24f,
                 new ConfigDescription("Host only: how much closer another player must be before an enemy turns on them (pixels; 16 = one tile).",
                     new AcceptableValueRange<float>(0f, 200f)));
+            ShareWandererDungeons = cfg.Bind("Co-op", "ShareWandererDungeons", true,
+                "Share floors, enemies, loot and ghosts in the Wanderer DLC dungeon too (everyone must use the same setting). Turn off if DLC runs misbehave.");
             CheckForUpdates = cfg.Bind("Updates", "CheckForUpdates", true,
                 "On start, look up the latest release on GitHub and say so on the main menu if there's a newer one.");
         }

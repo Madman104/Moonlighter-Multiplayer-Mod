@@ -39,5 +39,9 @@ namespace Coop.Core.Protocol
         ChestContents = 35,
         BreakableBroken = 36,
         RoomObject = 37,
+        PartnerHit = 38,
+        SummonSpawned = 39,
+        SummonGone = 40,
+        TownState = 41,
     }
 }

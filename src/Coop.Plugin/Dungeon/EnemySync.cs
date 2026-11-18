@@ -73,8 +73,11 @@ namespace Coop.Plugin.Dungeon
 
         // ---- same champion picks; ids in spawn order ----
 
+        private static int _roomSpawnDepth;
+
         private static void SpawnPrefix(DungeonRoom __instance, out SeedState __state)
         {
+            _roomSpawnDepth++;
             __state = new SeedState();
             NextId[__instance] = 0;
             if (!Connected(out _) || !InSharedDungeon()) return;
@@ -86,12 +89,15 @@ namespace Coop.Plugin.Dungeon
 
         private static void SpawnPostfix(SeedState __state)
         {
+            if (_roomSpawnDepth > 0) _roomSpawnDepth--;
             if (__state != null && __state.Seeded) UnityEngine.Random.state = __state.Saved;
         }
 
-        private static void SpawnOnePostfix(DungeonRoom __instance, Enemy __result)
+        private static void SpawnOnePostfix(DungeonRoom __instance, Enemy __result, DungeonRoomInfo.EnemySpawn spawnPair, int tile)
         {
             if (__result == null || __result.GetComponent<CoopEnemyId>() != null) return;
+            // Spawned by an enemy's AI (not the room filling itself): a shared summon.
+            if (_roomSpawnDepth == 0 && SummonSync.OnSpawned(__instance, __result, spawnPair, tile)) return;
             NextId.TryGetValue(__instance, out int id);
             NextId[__instance] = id + 1;
             __result.gameObject.AddComponent<CoopEnemyId>().Id = id;

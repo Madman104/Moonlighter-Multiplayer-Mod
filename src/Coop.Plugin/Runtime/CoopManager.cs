@@ -131,6 +131,9 @@ namespace Coop.Plugin.Runtime
             Dungeon.EnemySync.Attach(Session);
             Dungeon.EnemyMirror.Attach(Session);
             Sync.PartnerSounds.Attach(Session);
+            Dungeon.EnemyHitGuard.Attach(Session);
+            Dungeon.ProjectileMirror.Attach(Session);
+            Dungeon.SummonSync.Attach(Session);
             Dungeon.FloorItems.Attach(Session);
             Dungeon.BreakableSync.Attach(Session);
             Dungeon.ChestSync.Attach(Session);
@@ -141,6 +144,7 @@ namespace Coop.Plugin.Runtime
             Shared.DaySync.Attach(Session);
             Shared.WorldSync.Attach(Session);
             Shared.ShopSync.Attach(Session);
+            Shared.TownSync.Attach(Session);
             Shared.CitizenMirror.Attach(Session);
             SessionStarted?.Invoke();
         }
@@ -181,6 +185,8 @@ namespace Coop.Plugin.Runtime
             Menu.MainMenuCoop.Tick();
             Dungeon.EnemySync.Tick();
             Dungeon.EnemyMirror.Tick();
+            Dungeon.ProjectileMirror.Tick();
+            Dungeon.SummonSync.Tick();
             Sync.PartnerSounds.Tick();
             Dungeon.FloorItems.Tick();
             Dungeon.ChestSync.Tick();
@@ -190,6 +196,7 @@ namespace Coop.Plugin.Runtime
             Shared.DaySync.Tick();
             Shared.WorldSync.Tick();
             Shared.ShopSync.Tick();
+            Shared.TownSync.Tick();
             Shared.CitizenMirror.Tick();
 
             if (Session == null) return;

@@ -92,6 +92,7 @@ namespace Coop.Core.Protocol
                         break;
                     case MessageType.WorldSlot:
                     case MessageType.ShopState:
+                    case MessageType.TownState:
                         var pt = ((PackedText)msg).Data ?? new byte[0];
                         w.Write(pt.Length);
                         w.Write(pt);
@@ -182,6 +183,18 @@ namespace Coop.Core.Protocol
                         var ro = (RoomObject)msg;
                         w.Write(ro.RoomKey); w.Write(ro.Kind); w.Write(ro.X); w.Write(ro.Y); w.Write(ro.Value);
                         break;
+                    case MessageType.PartnerHit:
+                        var ph = (PartnerHit)msg;
+                        w.Write(ph.Target); w.Write(ph.Damage); w.Write(ph.Source ?? "");
+                        break;
+                    case MessageType.SummonSpawned:
+                        var ss = (SummonSpawned)msg;
+                        w.Write(ss.RoomKey); w.Write(ss.Id); w.Write(ss.Name ?? ""); w.Write(ss.Tile); w.Write(ss.X); w.Write(ss.Y);
+                        break;
+                    case MessageType.SummonGone:
+                        var sg = (SummonGone)msg;
+                        w.Write(sg.RoomKey); w.Write(sg.Id);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -256,6 +269,12 @@ namespace Coop.Core.Protocol
                             return (type, new BreakableBroken { RoomKey = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle() });
                         case MessageType.RoomObject:
                             return (type, new RoomObject { RoomKey = rd.ReadInt32(), Kind = rd.ReadByte(), X = rd.ReadSingle(), Y = rd.ReadSingle(), Value = rd.ReadSingle() });
+                        case MessageType.PartnerHit:
+                            return (type, new PartnerHit { Target = rd.ReadByte(), Damage = rd.ReadSingle(), Source = rd.ReadString() });
+                        case MessageType.SummonSpawned:
+                            return (type, new SummonSpawned { RoomKey = rd.ReadInt32(), Id = rd.ReadByte(), Name = rd.ReadString(), Tile = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle() });
+                        case MessageType.SummonGone:
+                            return (type, new SummonGone { RoomKey = rd.ReadInt32(), Id = rd.ReadByte() });
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };
@@ -277,6 +296,8 @@ namespace Coop.Core.Protocol
                             return (type, new WorldSlot { Data = rd.ReadBytes(rd.ReadInt32()) });
                         case MessageType.ShopState:
                             return (type, new ShopState { Data = rd.ReadBytes(rd.ReadInt32()) });
+                        case MessageType.TownState:
+                            return (type, new TownState { Data = rd.ReadBytes(rd.ReadInt32()) });
                         case MessageType.FloorLayout:
                             return (type, new FloorLayout { Culture = rd.ReadByte(), Floor = rd.ReadByte(), Json = rd.ReadString() });
                         case MessageType.DungeonTravel:

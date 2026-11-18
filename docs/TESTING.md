@@ -215,3 +215,11 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 2. With an older mod, start the game: a toast says the newer version is out; the log says "Co-op mod X is out". Up to date: the log says "Co-op mod is up to date".
 3. Different difficulty / NG+ between players: an enemy's health bar is the same on both screens after a second.
 4. As the guest, discover a new item in co-op, leave co-op, load your own save: the item is discovered there too.
+
+## Shared attacks, summons, waves, town, Wanderer (mod 1.7.0)
+1. Stand near an enemy your partner is closer to: its projectiles show on your screen and hit you (watch the health bar); dodging through them works.
+2. A slime that splits / a seeder that sprouts: the new enemies appear in both windows, share health and can be hit by both.
+3. Enemy-wave shrine: the wave enemies appear in both windows.
+4. Host buys a town upgrade: the guest's log says "town upgrades updated from another player"; the shop/bed level works for the guest.
+5. Wanderer DLC dungeon: same floor, same enemies, shared loot.
+6. Log lines: "Partner hitbox layer N, touches M enemy layers" (M should be 2-4), "Enemy hit guard on A AttackHit and B contact methods".

@@ -23,6 +23,7 @@ namespace Coop.Plugin.Sync
         private float _nextCacheRefresh;
         private PlayerState _latest;
         private bool _shown;
+        private PartnerHitbox _hitbox;
 
         public int Index;
         public CoopLink Session;
@@ -35,6 +36,8 @@ namespace Coop.Plugin.Sync
             var p = go.AddComponent<RemotePlayerPuppet>();
             p.Session = session;
             p.Index = index;
+            p._hitbox = go.AddComponent<PartnerHitbox>();
+            p._hitbox.Player = index;
             p.LastStateAt = Time.realtimeSinceStartup;
             session.PlayerStateReceived += p.OnState;
             session.SpriteDefReceived += p.OnSpriteDef;
@@ -70,6 +73,8 @@ namespace Coop.Plugin.Sync
         {
             bool show = _latest != null && Session != null
                 && PuppetVisibility.ShouldShow(GameInfo.CurrentSceneId(), _latest.SceneId, Session.State);
+            if (_hitbox != null)
+                _hitbox.SetActive(show && !_latest.Ghost && _latest.SceneId >= 0 && Dungeon.SharedCultures.InSharedDungeon());
             if (!show)
             {
                 if (_shown) SetAllVisible(false);
