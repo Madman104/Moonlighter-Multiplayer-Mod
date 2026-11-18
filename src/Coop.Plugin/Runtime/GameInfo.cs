@@ -28,7 +28,10 @@ namespace Coop.Plugin.Runtime
         {
             var gm = GameManager.Instance;
             if (gm == null) return LocationId.None;
-            return LocationId.From(HeroMerchant.Instance != null, gm.IsTownSceneLoaded(), gm.IsDungeonSceneLoaded());
+            int culture = -1, floor = -1;
+            var dm = DungeonManager.Instance;
+            if (dm != null) { culture = (int)dm.culture; floor = dm.level; }
+            return LocationId.From(HeroMerchant.Instance != null, gm.IsTownSceneLoaded(), gm.IsDungeonSceneLoaded(), culture, floor);
         }
     }
 }

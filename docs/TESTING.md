@@ -34,3 +34,30 @@ Results:
 |---|---|---|---|
 | 1–7 | 2026-11-18 | PASS | reported by user: works on one PC (pause-menu CO-OP page, connect, see each other) |
 | 8 | | not tested | needs second account |
+
+## Stage 2 (dungeon rooms together)
+
+### Automated (2026-11-18)
+
+| Check | Result |
+|---|---|
+| `dotnet test` (100 tests incl. floor layout store, travel arbiter, dungeon location, 200 KB layout through framing) | PASS |
+| Two connected test copies: all dungeon patches (GenerateDungeon, LoadDungeonScene, LoadTownSceneFromDungeon, ChangeRoomTo, SpecialChangeRoomTo) apply, no errors | PASS |
+
+### Needs a person at the keyboard
+
+Setup as stage 1 (host via Steam + `tools\launch-test-client.ps1`, connect via pause → CO-OP).
+
+1. **Enter together.** Host walks into a dungeon gate. The test window follows into the same dungeon. Log (`BepInEx\LogOutput.log*`): host `Sent floor layout ...`, client `Building the host's ... floor`.
+2. **Same layout.** Both minimaps show the same rooms. The other player's Will is visible in the same room.
+3. **Rooms.** Host goes through a door: test window moves to the same room. Then the test window goes through a door: host follows.
+4. **Holes / special moves.** Fall through a hole or use a secret room: the other follows.
+5. **Next floor.** Take the next-floor door: both arrive on the same next floor.
+6. **Back to town.** Use the pendant or the dungeon exit: both return to town.
+7. **Client enters first.** Repeat 1 with the test window walking into the gate first.
+
+Known limits of stage 2 (by design): enemies, chests and loot are not shared yet (stage 3/4); each game spawns its own enemies, so a room can be clear in one window and full in the other. Dying sends both players home. The test client's own save slot is still written on dungeon entry (stage 6).
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–7 | | | |

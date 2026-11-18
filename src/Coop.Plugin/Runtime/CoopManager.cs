@@ -119,6 +119,8 @@ namespace Coop.Plugin.Runtime
             Session.StateChanged += OnStateChanged;
             Status = status;
             CoopPlugin.Log.LogInfo(status);
+            Dungeon.FloorSync.Attach(Session);
+            Dungeon.TravelSync.Attach(Session);
             SessionStarted?.Invoke();
         }
 
