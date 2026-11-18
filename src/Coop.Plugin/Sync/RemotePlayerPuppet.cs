@@ -142,7 +142,12 @@ namespace Coop.Plugin.Sync
             if (screen.z < 0) return;
             var rect = new Rect(screen.x - 120, Screen.height - screen.y - 24, 240, 22);
             var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
-            style.normal.textColor = Tint;
+            // The name's colour shows their health (green -> yellow -> red; grey = ghost).
+            var (tr, tg, tb) = NameTint.For(_latest.Hp, _latest.MaxHp, _latest.Ghost);
+            var shadow = new GUIStyle(style);
+            shadow.normal.textColor = new Color(0f, 0f, 0f, 0.8f);
+            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), PlayerNames.Partner, shadow);
+            style.normal.textColor = new Color(tr, tg, tb);
             GUI.Label(rect, PlayerNames.Partner, style);
         }
     }

@@ -36,7 +36,7 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
   - Customers come into the host's game; the guest sees them and can sell to them.
 - **Emblem portal:** the host's portal is the shared one. The guest's portal asks the host to go through theirs.
 
-Your partner's name (their Steam name) shows above their Will. In dungeons their health bar is under your gold, top left.
+Your partner's name (their Steam name) shows above their Will. Its colour shows their health: green when full, yellow at half, red when low, grey for a ghost.
 
 ## Dying, ghosts and revives
 - **Dying while your partner is alive** turns you into a **ghost**. A ghost:
