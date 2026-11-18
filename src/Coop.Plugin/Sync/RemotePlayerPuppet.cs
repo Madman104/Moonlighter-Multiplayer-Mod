@@ -135,6 +135,25 @@ namespace Coop.Plugin.Sync
             return _spriteCache.TryGetValue(key, out var sprite) ? sprite : null;
         }
 
+        /// <summary>Highest a name may sit above the feet (world units = game pixels).</summary>
+        private const float MaxHeadHeight = 34f;
+        private static bool _loggedTop;
+
+        private float VisibleTop(SpriteRenderer r)
+        {
+            var sprite = r.sprite;
+            if (sprite == null) return r.bounds.max.y;
+            float maxY = float.MinValue;
+            foreach (var v in sprite.vertices) if (v.y > maxY) maxY = v.y;
+            float top = maxY == float.MinValue ? r.bounds.max.y : r.transform.TransformPoint(new Vector3(0f, maxY, 0f)).y;
+            if (!_loggedTop)
+            {
+                _loggedTop = true;
+                CoopPlugin.Log.LogInfo($"Name placement: visible top {top - transform.position.y:0.#}, frame top {r.bounds.max.y - transform.position.y:0.#} above the feet");
+            }
+            return top;
+        }
+
         private static int _bodySlot = -1;
 
         /// <summary>Slot of Will's body sprite: same prefab on both games, so same order as the local Will.</summary>
@@ -156,11 +175,13 @@ namespace Coop.Plugin.Sync
         private void OnGUI()
         {
             if (!_shown || Camera.main == null) return;
-            // Just above the body sprite (other layers, e.g. effects, can reach far higher).
+            // Just above Will's head: the top of the body sprite's visible pixels (its outline
+            // points), not its frame, which has empty space above the head. Capped near the feet.
             int body = BodySlot();
             float top = body >= 0 && body < _slots.Count && _slots[body].enabled
-                ? _slots[body].bounds.max.y + 2f
-                : transform.position.y + 40f;
+                ? VisibleTop(_slots[body]) + 3f
+                : transform.position.y + MaxHeadHeight;
+            top = Mathf.Min(top, transform.position.y + MaxHeadHeight);
             var screen = Camera.main.WorldToScreenPoint(new Vector3(transform.position.x, top, transform.position.z));
             if (screen.z < 0) return;
             var rect = new Rect(screen.x - 120, Screen.height - screen.y - 24, 240, 22);
