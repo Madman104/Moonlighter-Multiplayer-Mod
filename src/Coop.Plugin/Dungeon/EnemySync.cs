@@ -17,8 +17,8 @@ namespace Coop.Plugin.Dungeon
 
     /// <summary>
     /// Stage 3a: enemy health and deaths are shared; each game runs its own enemy AI.
-    /// Enemies have double health in co-op, both games pick the same champions, and only the
-    /// host drops loot (items are shared in stage 4).
+    /// Enemies have double health in co-op, both games pick the same champions. Loot is per
+    /// player: each game drops its own loot from enemy deaths (bags are separate).
     /// Enemies are identified by a spawn-order id, not by their place in room.roomEnemies
     /// (that list shrinks on death and AI adds/removes enemies at local timing).
     /// </summary>
@@ -44,8 +44,6 @@ namespace Coop.Plugin.Dungeon
             harmony.Patch(AccessTools.PropertySetter(typeof(EnemyStats), nameof(EnemyStats.CurrentHealth)),
                 prefix: new HarmonyMethod(typeof(EnemySync), nameof(HealthPrefix)),
                 postfix: new HarmonyMethod(typeof(EnemySync), nameof(HealthPostfix)));
-            harmony.Patch(AccessTools.Method(typeof(Enemy), nameof(Enemy.DropItemsOnDeath)),
-                prefix: new HarmonyMethod(typeof(EnemySync), nameof(DropPrefix)));
         }
 
         public static void Attach(PeerSession session)
@@ -133,13 +131,6 @@ namespace Coop.Plugin.Dungeon
             {
                 X = (short)room.x, Y = (short)room.y, Secret = room.isSecret, Index = (byte)id, Delta = delta,
             });
-        }
-
-        // ---- loot only on the host ----
-
-        private static bool DropPrefix()
-        {
-            return !(Connected(out var s) && !s.IsHost && InSharedDungeon());
         }
 
         // ---- receiving ----

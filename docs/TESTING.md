@@ -141,3 +141,14 @@ Known limits: if both players change the bag at the same moment, the last change
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–3 | | | |
+
+## Own bags + ghost drop (mod 0.7.0)
+Automated: 121 tests pass; two test copies connect on 0.7.0 with every patch applied and no errors.
+
+Manual checklist (not played yet):
+1. Both in a dungeon: kill an enemy. Each player sees and can pick up their own loot.
+2. Each player's bag changes only on their own screen.
+3. Die while your partner is alive: you turn see-through and your non-safe bag items scatter where you fell.
+4. As a ghost, walk over the pile: nothing is picked up or pulled toward you.
+5. Partner uses a healing pool: you revive, walk back to the pile and pick everything up.
+6. Leave the room and come back before picking up: the pile is still there.

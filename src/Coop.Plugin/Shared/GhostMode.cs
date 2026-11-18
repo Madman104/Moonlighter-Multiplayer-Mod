@@ -12,6 +12,8 @@ namespace Coop.Plugin.Shared
     /// Stage 5: dying in a shared dungeon while the partner is alive makes you a ghost
     /// (see-through, can't be hurt, can't hurt enemies, can't use pools). The living partner
     /// revives you by using a healing pool, which is then used up. Both down = normal death.
+    /// Becoming a ghost drops your bag (except safe slots) where you fell, in that room; a
+    /// ghost can't pick items up, so walk back to the pile after being revived.
     /// Also draws the partner's health bar in dungeons.
     /// </summary>
     internal sealed class GhostMode : MonoBehaviour
@@ -38,6 +40,11 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(PoolPrefix)));
             harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.LoadTownSceneFromDungeon)),
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(TownPrefix)));
+            // Ghosts can't pick up or attract items (the attract check asks CanPlaceItem).
+            harmony.Patch(AccessTools.Method(typeof(PickOnWalk), nameof(PickOnWalk.TryToAdd)),
+                prefix: new HarmonyMethod(typeof(GhostMode), nameof(BlockIfGhost)));
+            harmony.Patch(AccessTools.Method(typeof(HeroMerchantInventory), nameof(HeroMerchantInventory.CanPlaceItem), new[] { typeof(ItemStack) }),
+                prefix: new HarmonyMethod(typeof(GhostMode), nameof(CanPlacePrefix)));
         }
 
         public static void Attach(PeerSession session)
@@ -89,6 +96,43 @@ namespace Coop.Plugin.Shared
         }
 
         private static bool BlockIfGhost() => !LocalGhost;
+
+        private static bool CanPlacePrefix(ref bool __result)
+        {
+            if (!LocalGhost) return true;
+            __result = false;
+            return false;
+        }
+
+        private static bool _dropPending;
+
+        /// <summary>
+        /// Drops every bag item that isn't in a safe slot at Will's feet, the way the game drops
+        /// items (ItemStack.Drop + the room's drop list, so the pile stays in that room).
+        /// Equipment and potions stay equipped.
+        /// </summary>
+        private static void DropBag()
+        {
+            var hm = HeroMerchant.Instance;
+            if (hm == null) return;
+            var inv = hm.heroMerchantInventory;
+            var room = DungeonManager.Instance != null ? DungeonManager.Instance.currentDungeonRoom : null;
+            Transform parent = room != null ? room.transform : null;
+            Vector2 at = hm.transform.position;
+            int dropped = 0;
+            for (int i = 0; i < inv.slots.Length; i++)
+            {
+                var slot = inv.slots[i];
+                if (slot == null || slot.item == null || slot.isSafe) continue;
+                var item = slot.item;
+                inv.SetItem(null, i);
+                if (room != null) room.AddDropItems(new System.Collections.Generic.List<ItemStack> { item });
+                item.Drop(at, 30f, parent);
+                dropped++;
+            }
+            if (dropped > 0) CoopToast.Show("Your items dropped where you fell - pick them up once you're revived");
+            CoopPlugin.Log.LogInfo($"Co-op: dropped {dropped} bag item(s) on becoming a ghost");
+        }
 
         private static bool PoolPrefix(HealingArea __instance)
         {
@@ -146,6 +190,7 @@ namespace Coop.Plugin.Shared
         private static void Enter()
         {
             LocalGhost = true;
+            _dropPending = true; // done in LateUpdate, outside the health setter's callback
             // Health is raised to 1 in LateUpdate: we're inside the health setter's callback here,
             // and the setter would overwrite a value set now.
             CoopPlugin.Log.LogInfo("Co-op: you are a ghost. Your partner can revive you at a healing pool.");
@@ -165,6 +210,7 @@ namespace Coop.Plugin.Shared
         private static void Exit(float health)
         {
             LocalGhost = false;
+            _dropPending = false;
             var hm = HeroMerchant.Instance;
             if (hm == null) return;
             hm.heroMerchantStats.currentHealth.Value = Mathf.Max(1f, health);
@@ -193,6 +239,12 @@ namespace Coop.Plugin.Shared
             var hm = HeroMerchant.Instance;
             if (!LocalGhost || hm == null) { _bothGhostSince = -1f; return; }
             SetAlpha(hm, GhostAlpha);
+            if (_dropPending)
+            {
+                _dropPending = false;
+                try { DropBag(); }
+                catch (Exception e) { CoopPlugin.Log.LogWarning("Could not drop the bag: " + e.Message); }
+            }
             if ((float)hm.heroMerchantStats.currentHealth.Value <= 0f)
                 hm.heroMerchantStats.currentHealth.Value = 1f; // keep the controller alive
 
