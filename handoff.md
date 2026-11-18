@@ -1,77 +1,56 @@
-# Moonlighter Co-op — handoff (2026-11-18)
-
-Written at the end of an unattended session. Start here tomorrow.
+# Moonlighter Co-op — handoff (1.0.0, 2026-11-18)
 
 ## Where things are
-- **Repo:** this folder (git). Branches are stacked, each one built on the previous:
-  `main` → `feat/coop-stage1` → `feat/coop-stage2` → `feat/coop-stage3` → `feat/coop-stage4` → `feat/coop-stage5` → `feat/coop-stage6` → `feat/coop-stage4b` (shared bag v1, now superseded) → **`feat/coop-own-bags` (checked out, newest)**.
-  Nothing is merged into `main` and nothing is pushed anywhere.
-- **Installed in the game:** the newest build (own bags + ghost item drop, mod 0.7.0) is deployed to `D:\SteamLibrary\steamapps\common\Moonlighter\BepInEx\plugins\MoonlighterCoop\`.
-- **Build & deploy:** close the game, then run `tools\deploy.ps1`. Tests: `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (121 passing).
-- **Main menu:** "Continue as co-op host" (under Continue) loads your save and starts hosting once you're in town. Steam opens its invite window; test-client mode hosts on IP. You tested it: selection and loading-then-hosting work.
-- **Test on one PC:** start Moonlighter through Steam (host), then run `tools\launch-test-client.ps1` (second copy, no Steam, own saves). Connect with pause → **CO-OP** → HOST (IP) / JOIN 127.0.0.1.
-- **What to test, stage by stage:** `docs/TESTING.md`. Stage 1 passed your test. Stages 2–6a are built and smoke-tested only: both copies start and connect with every patch applied and no errors. Nobody has played them yet.
+- **Repo:** this folder (git). Newest work is on **`feat/coop-own-bags`**, which is stacked on all the stage branches (`main` → `feat/coop-stage1` → … → `feat/coop-stage4b` → `feat/coop-own-bags`). See "Merge" below.
+- **Version:** mod 1.0.0. Older builds are refused by the handshake.
+- **Build/test:** `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (137 tests pass).
+  - `tools\deploy.ps1` copies the build into the game; the game must be closed.
+  - `tools\package.ps1` makes `dist\MoonlighterCoop-1.0.0.zip` (the plugin plus the player guide).
+- **Players:** [docs/PLAYER-GUIDE.md](docs/PLAYER-GUIDE.md) covers install, hosting, joining, the rules and the limits.
+- **What to test:** [docs/TESTING.md](docs/TESTING.md). The 1.0 checklist is at the bottom.
 
-## What each stage does now
-| Stage | Status | What it does |
+## What 1.0 does
+| Area | What it does | Tested? |
 |---|---|---|
-| 1 Connect & see each other | ✅ tested by you | Steam lobby / IP join from the pause menu; the partner's Will is drawn as a tinted copy |
-| 2 Dungeon rooms together | built, reviewed, fixed | The host's generated floor is sent to the guest, who builds the identical floor; entering, room changes, next floor and returning home are mirrored; host wins clashes |
-| 3a Enemies | built | Shared enemy **health/deaths** (each game runs its own enemy AI); same champions on both; 2x health; each game drops its own loot |
-| 4a Gold | built | One shared purse; the guest's own save keeps only their own bag/equipment from co-op (see below) |
-| 5 Ghosts | built | Die while your partner is alive → ghost; partner uses a healing pool → you revive at half health, pool used up; both down → normal death; partner health bar top-left in dungeons |
-| Own bags (2026-11-18, your change) | built, smoke-tested | Each player keeps their own bag (shared bag removed). Loot is per player. Becoming a ghost drops your bag (not safe slots) where you fell; a ghost can't pick items up; walk back to the pile once revived |
-| 6a Day/bed | built | The host's time of day is the truth; the host's bed ends the day for both; the guest's bed only shows a notice |
+| Connect | Steam lobby/invite, or IP. Main menu "Continue as co-op host" and "Join co-op"; pause → CO-OP | Stage 1 and the host entry played by you; Steam not tested |
+| Host's world | On connect the host (in town) sends its save slot. The guest loads it from the main menu with their own bag and gear | Transfer and receive seen in logs; loading not played |
+| Dungeons | Same floor, same room, next floor and home together. Emblem portal shared (the host's). Unknown dungeon included. Guest minimap no longer starts revealed | Not played |
+| Enemies | Shared health and deaths, 2× health, same champions. **Same positions**: the closer player's game runs each enemy | Not played |
+| Gold | One purse. A simultaneous over-spend becomes debt, taken from the next income | Not played |
+| Bags | Per player. Each game drops its own loot | Not played |
+| Ghosts | Die while your partner is alive → ghost, bag dropped where you fell. A healing pool revives (pool used up for both). Both down → normal death | Not played |
+| Day/bed | Host's time of day and calendar for both. Host's bed ends the day | Not played |
+| Shop | Showcases, prices and chests shared both ways. Customers only in the host's game, drawn for the guest. Guest's register sells via the host's. Either player can open the shop | Not played |
+| Saves | Host saves normally. The guest's own save only gets their bag, gear and weapon set | Copy/read-back seen in logs; real save not played |
+| Disconnect | Host gone → guest's bag saved, guest to main menu (a ghost guest just stops being a ghost). Guest gone → host plays on; paused enemies resume | Not played |
+| Controller | All co-op menus are the game's own buttons with explicit up/down links. Steam invites through the overlay. INVITE FRIEND reopens the invite window | Keyboard navigation of the main menu entry tested by you |
 
-## Not done yet (next steps, in suggested order)
-1. **Play-test stages 2–6a** using `docs/TESTING.md`. Expect bugs: these use game code paths that couldn't be driven automatically.
-2. **Guest save (your choice: keep bag + gear):** built. When the guest's game saves, it writes a copy of their save from when they joined, with only the current bag, equipment and weapon set put in. Gold, day, story and shop stay as before co-op. Smoke-tested only (the copy is made and reads back); a real save write hasn't been tested yet. If the copy fails, the guest's save isn't written (old behaviour).
-3. **Stage 4c: shop.** You chose "both players can set prices and use the counter". Not started (ShopManager research still needed).
-4. **Stage 3b: enemies moved by the host.** Right now enemy positions differ between screens. See `docs/notes/stage3-enemies-recon.md`.
-5. **Stage 2 limits** listed in `docs/TESTING.md`: the guest's minimap starts revealed, emblem-portal return isn't shared, Unknown/Wanderer DLC floors aren't shared.
-6. **Steam joining with a real friend:** never tested (needs a second account).
-7. **Merge branches into `main`** once you're happy.
+## Next steps
+1. **Play-test with your friend** using the 1.0 checklist in `docs/TESTING.md`. Expect bugs in the untested rows above.
+2. Fix what breaks, then **merge** (see below) and tag `v1.0.0`.
 
-## Decisions to check (made while you were away)
-- **Own bags (your 2026-11-18 change):**
-  - Loot is instanced: each game drops its own loot, so both players get a copy of every drop. Chests open separately in each game.
-  - The death drop leaves items in safe slots (the game's own "safe" flag) and keeps equipment and the potion.
-  - Items dropped by a ghost stay in that room (the room's drop list) until the run ends. Going home or a real death leaves them behind, like a normal death.
-  - The Angel Amulet doesn't stop the ghost drop.
-- **Enemies, stage 3a:** each game runs its own enemy AI; only health/deaths are shared. This was faster to build within the remaining usage. The catch: enemies aren't in the same place on both screens. Stage 3b would fix it.
-- **Guest saves:** only bag, equipment and weapon set are kept. Item discoveries, recipes seen and achievements from co-op are not kept in the guest's save.
-- **Guest bed:** only shows a notice; it doesn't ask the host to sleep.
-- **Ghost rules:** a ghost can't be hurt, can't hurt enemies and can't use pools. Revive gives half health. If the partner disconnects while you're a ghost, you die normally.
-- **Gold:** the host's total is pushed every 2 s; the guest's spending is sent as changes. A quick double-spend by both at the same moment is possible.
+## Merge
+`main` is an ancestor of `feat/coop-own-bags`, so merging is a fast-forward. I haven't done it: you asked to play-test first. Commands for when you're happy:
+```
+git checkout main
+git merge --ff-only feat/coop-own-bags
+git tag v1.0.0
+```
+The old stage branches can be deleted after that. `feat/coop-stage4b` (shared bag v1) is superseded; its commit is still in the history.
 
-## Review status
-- **Stage 1:** whole-branch review done; fixes applied.
-- **Stage 2:** review done; all 4 critical findings and the main important ones fixed (commit `f62c810`).
-- **Stages 3a–6a:** review done; fixes in commit `52f9c86`, plus pool sync after it:
-  - Enemies now have a stable spawn-order id. The killing blow is shared, and hits no longer land on the wrong enemy when the two games' enemy lists differ.
-  - The other player's hits now count even during a local invincibility window.
-  - Loading a save no longer sends its gold to the partner. Returning to the main menu leaves the session.
-  - The guest's save stays blocked after a disconnect until a save is reloaded.
-  - Ghost fixes:
-    - A ghost now keeps 1 health.
-    - Both players being ghosts, or the partner really dying, now ends in a normal death.
-    - Going home as a ghost keeps the death penalty.
-    - While a partner is loading, their health counts as unknown, not as dead.
-  - A revive drains the pool on both games.
-  - The mod version is now **0.6.0**, so older builds are refused.
+## Decisions to check
+- **Guest joins the host's world** (new): needed for a shared shop and town. Joining sends the guest to the main menu if they're in a game. Town upgrades the host buys mid-session show for the guest next time they join.
+- **Enemies run by the closer player:** an enemy only attacks the player whose game runs it, and its projectiles only show on that screen. Switching needs a 24-unit margin. Ghosts never run enemies.
+- **Shop sync** is "last change wins" per slot every 0.5 s, and never under an open shop panel. If both players change the same slot at once, one change is lost.
+- **Guest disconnect handling:** the guest is sent to the main menu. Their bag is saved; their dungeon progress isn't.
+- **Gold debt:** the host keeps the shortfall and silently takes it from the next income.
+- **Ghost drop:** non-safe bag slots only; equipment and potion are kept. The Angel Amulet doesn't prevent it.
+- **Loot is per player:** each game drops its own, so both of you get a copy.
+- **Wanderer DLC dungeons:** travel is shared there, enemies aren't, and there are no ghosts.
 
-### Review findings not fixed yet (minor)
-- **Day/night:**
-  - The guest's day counter can drift from the host's, because only morning/evening is synced.
-  - A shop closing shows "Your partner rested" on the guest.
-  - The guest gets no bed benefits.
-  - The guest sees the notice after the day changes, not before.
-- **Gold:** if both players spend at the same instant with too little gold, one purchase can end up free.
-- **Ghosts:**
-  - Ghosts can drink potions.
-  - Ghosts are possible in Wanderer/ICT dungeons, where enemy health isn't shared.
-- **Enemies:** max health can still differ between games (difficulty, NG+ and night levelling are per player). The host's 1 s correction hides it, but health-bar fractions can differ.
-- **Enemy summons** (boss minions, resurrections) get ids in each game's own order, so they can still mismatch. Pack enemies and bosses are stable.
-
-## Inventory notes
-Shared bag v1 (`feat/coop-stage4b`) was removed at your request: bags are per player. The protocol keeps message type 20 (BagSnapshot) unused. Game drop API used for the ghost pile: `ItemStack.Drop(pos, radius, roomTransform)` + `DungeonRoom.AddDropItems`.
+## Known limits / minor findings not fixed
+- Enemy summons the follower doesn't have are drawn as copies and can't be hit on that screen.
+- Max enemy health can differ (difficulty/NG+ per player); the host's 1 s health correction hides most of it.
+- Shop customers' sprites must be loaded in the guest's game. If some customers are invisible for the guest, the log says "Customer sprite not loaded here".
+- The guest's bed gives no bed benefits.
+- The guest's save doesn't keep item discoveries, recipes or achievements from co-op.
