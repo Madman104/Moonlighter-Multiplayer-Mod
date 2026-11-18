@@ -184,6 +184,7 @@ namespace Coop.Plugin.Runtime
         {
             if (!TestClientMode.Active) Steam.SteamLobby.EnsureInitialized();
             HandleAutoArgs();
+            Menu.MainMenuCoop.Tick();
             Dungeon.EnemySync.Tick();
             Shared.GoldSync.Tick();
             Shared.DaySync.Tick();

@@ -8,6 +8,7 @@ Written at the end of an unattended session. Start here tomorrow.
   Nothing is merged into `main` and nothing is pushed anywhere.
 - **Installed in the game:** the newest build (own bags + ghost item drop, mod 0.7.0) is deployed to `D:\SteamLibrary\steamapps\common\Moonlighter\BepInEx\plugins\MoonlighterCoop\`.
 - **Build & deploy:** close the game, then run `tools\deploy.ps1`. Tests: `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (121 passing).
+- **Main menu:** "Continue as co-op host" (under Continue) loads your save and starts hosting once you're in town. Steam opens its invite window; test-client mode hosts on IP. You tested it: selection and loading-then-hosting work.
 - **Test on one PC:** start Moonlighter through Steam (host), then run `tools\launch-test-client.ps1` (second copy, no Steam, own saves). Connect with pause → **CO-OP** → HOST (IP) / JOIN 127.0.0.1.
 - **What to test, stage by stage:** `docs/TESTING.md`. Stage 1 passed your test. Stages 2–6a are built and smoke-tested only: both copies start and connect with every patch applied and no errors. Nobody has played them yet.
 

@@ -25,6 +25,7 @@ namespace Coop.Plugin
             _harmony = new Harmony(Guid);
             PlatformPatches.Apply(_harmony);
             Menu.CoopPauseMenu.Apply(_harmony);
+            Menu.MainMenuCoop.Apply(_harmony);
             Dungeon.FloorSync.Apply(_harmony);
             Dungeon.TravelSync.Apply(_harmony);
             Dungeon.EnemySync.Apply(_harmony);

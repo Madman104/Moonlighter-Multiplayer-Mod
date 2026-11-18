@@ -153,3 +153,11 @@ Manual checklist (not played yet):
 5. Partner uses a healing pool: you revive, walk back to the pile and pick everything up.
 6. Leave the room and come back before picking up: the pile is still there.
 7. Guest save: as the guest, pick up loot in co-op, go home, leave co-op, then reload your save. Your new bag items and gear are there. Your gold and day are what they were before you joined.
+
+## Main menu "Continue as co-op host"
+| Check | Result |
+|---|---|
+| Entry appears under Continue in the game's font, other entries move down one row | PASS (screenshot) |
+| Up/Down reaches it with keys | PASS (you tested it, after the navigation fix) |
+| Selecting it loads the save, then hosting starts in town | PASS (test-client mode, IP hosting, you tested it) |
+| Steam: lobby made and invite window opens | not tested |
