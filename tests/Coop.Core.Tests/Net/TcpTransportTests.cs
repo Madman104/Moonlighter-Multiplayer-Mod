@@ -49,6 +49,21 @@ namespace Coop.Core.Tests.Net
         }
 
         [Fact]
+        public void Host_reports_loopback_peer()
+        {
+            int port = FreePort();
+            using (var host = TcpTransport.Host(port))
+            using (var client = TcpTransport.Connect("127.0.0.1", port))
+            {
+                bool hc = false;
+                host.Connected += () => hc = true;
+                Assert.False(host.RemoteIsLoopback);
+                Assert.True(PollUntil(() => hc, 2, host, client));
+                Assert.True(host.RemoteIsLoopback);
+            }
+        }
+
+        [Fact]
         public void Hundred_payloads_arrive_complete_and_in_order()
         {
             int port = FreePort();

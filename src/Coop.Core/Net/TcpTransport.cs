@@ -31,6 +31,9 @@ namespace Coop.Core.Net
 
         public bool IsHost { get; }
 
+        /// <summary>True once connected to a peer on this same PC (127.0.0.1).</summary>
+        public bool RemoteIsLoopback { get; private set; }
+
         public event Action Connected;
         public event Action<string> Disconnected;
 
@@ -119,6 +122,7 @@ namespace Coop.Core.Net
                 s.Blocking = false;
                 s.NoDelay = true;
                 _socket = s;
+                RemoteIsLoopback = s.RemoteEndPoint is IPEndPoint ep && IPAddress.IsLoopback(ep.Address);
                 _connected = true;
                 Connected?.Invoke();
             }

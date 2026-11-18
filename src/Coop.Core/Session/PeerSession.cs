@@ -24,7 +24,8 @@ namespace Coop.Core.Session
 
         private readonly ITransport _transport;
         private readonly Hello _local;
-        private readonly bool _ignoreDlc;
+        /// <summary>Host only: skip the DLC check (set for same-PC test connections).</summary>
+        public bool IgnoreDlc { get; set; }
         private readonly Func<double> _clock;
         private double _lastReceive;
         private double _lastPing;
@@ -42,7 +43,7 @@ namespace Coop.Core.Session
         {
             _transport = transport;
             _local = local;
-            _ignoreDlc = ignoreDlc;
+            IgnoreDlc = ignoreDlc;
             _clock = clock;
             _transport.Connected += OnConnected;
             _transport.Disconnected += OnDisconnected;
@@ -118,7 +119,7 @@ namespace Coop.Core.Session
             switch (type)
             {
                 case MessageType.Hello when _transport.IsHost && State == SessionState.Handshaking:
-                    var reject = HandshakeRules.Validate(_local, (Hello)msg, _ignoreDlc);
+                    var reject = HandshakeRules.Validate(_local, (Hello)msg, IgnoreDlc);
                     if (reject != null)
                     {
                         Send(MessageType.Reject, reject, true);

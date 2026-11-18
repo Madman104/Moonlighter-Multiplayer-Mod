@@ -58,6 +58,15 @@ namespace Coop.Core.Tests.Session
         }
 
         [Fact]
+        public void Host_honors_ignore_dlc_set_after_construction()
+        {
+            var (host, client, _, _) = Pair(H(dlc: "Between Dimensions"), H());
+            host.IgnoreDlc = true;
+            Pump(host, client);
+            Assert.Equal(SessionState.Connected, client.State);
+        }
+
+        [Fact]
         public void Silence_for_over_ten_seconds_times_out()
         {
             var (host, client, _, _) = Pair(H(), H());

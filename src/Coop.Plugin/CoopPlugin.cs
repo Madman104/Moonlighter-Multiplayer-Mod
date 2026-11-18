@@ -19,8 +19,10 @@ namespace Coop.Plugin
         {
             Log = Logger;
             Log.LogInfo($"Moonlighter Co-op {ModVersion} loaded");
+            CoopConfig.Bind(Config);
             _harmony = new Harmony(Guid);
             PlatformPatches.Apply(_harmony);
+            Runtime.CoopManager.Create();
         }
     }
 }
