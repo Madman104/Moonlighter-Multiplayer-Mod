@@ -145,6 +145,7 @@ namespace Coop.Plugin.Runtime
                     break;
                 case SessionState.Connected:
                     Status = Session.IsHost ? "Connected (you are the host)" : "Connected (you joined)";
+                    if (!Session.IsHost) Shared.SaveGuard.MarkGuest();
                     break;
                 case SessionState.Closed:
                     Status = "Closed: " + Session.CloseReason;

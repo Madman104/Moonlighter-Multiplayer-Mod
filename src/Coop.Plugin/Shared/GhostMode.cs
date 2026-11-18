@@ -63,12 +63,7 @@ namespace Coop.Plugin.Shared
             session.StateChanged += st =>
             {
                 // Partner gone while you're a ghost: nobody can revive you, so it's a real death.
-                if (st == SessionState.Closed && LocalGhost)
-                {
-                    Exit(1f);
-                    var hm = HeroMerchant.Instance;
-                    if (hm != null) { _realDeath = true; try { hm.heroMerchantStats.Die(); } finally { _realDeath = false; } }
-                }
+                if (st == SessionState.Closed && LocalGhost) RealDeath("partner left while you were a ghost");
             };
         }
 
@@ -119,14 +114,29 @@ namespace Coop.Plugin.Shared
             if (!LocalGhost) return;
             var hm = HeroMerchant.Instance;
             Exit(hm != null ? (float)hm.heroMerchantStats.currentHealth.maxValue : 100f);
+            // Going home as a ghost counts as dying: the results screen applies the death penalty.
+            if (hm != null) hm.heroMerchantStats.isDead = true;
         }
+
+        private static float _bothGhostSince = -1f;
 
         private static void Enter()
         {
             LocalGhost = true;
-            var hm = HeroMerchant.Instance;
-            if (hm != null) hm.heroMerchantStats.currentHealth.Value = 1f; // keep the controller alive
+            // Health is raised to 1 in LateUpdate: we're inside the health setter's callback here,
+            // and the setter would overwrite a value set now.
             CoopPlugin.Log.LogInfo("Co-op: you are a ghost. Your partner can revive you at a healing pool.");
+        }
+
+        private static void RealDeath(string why)
+        {
+            CoopPlugin.Log.LogInfo("Co-op: " + why);
+            Exit(1f);
+            var hm = HeroMerchant.Instance;
+            if (hm == null) return;
+            _realDeath = true;
+            try { hm.heroMerchantStats.Die(); }
+            finally { _realDeath = false; }
         }
 
         private static void Exit(float health)
@@ -157,7 +167,22 @@ namespace Coop.Plugin.Shared
 
         private void LateUpdate()
         {
-            if (LocalGhost && HeroMerchant.Instance != null) SetAlpha(HeroMerchant.Instance, GhostAlpha);
+            var hm = HeroMerchant.Instance;
+            if (!LocalGhost || hm == null) { _bothGhostSince = -1f; return; }
+            SetAlpha(hm, GhostAlpha);
+            if ((float)hm.heroMerchantStats.currentHealth.Value <= 0f)
+                hm.heroMerchantStats.currentHealth.Value = 1f; // keep the controller alive
+
+            // Partner really died (not a ghost, no health): both are down -> normal death.
+            if (PartnerHp == 0f && !PartnerGhost) { RealDeath("both players are down"); return; }
+
+            // Both became ghosts at the same moment: nobody can revive -> normal death after 2 s.
+            if (PartnerGhost)
+            {
+                if (_bothGhostSince < 0f) _bothGhostSince = Time.realtimeSinceStartup;
+                else if (Time.realtimeSinceStartup - _bothGhostSince > 2f) { _bothGhostSince = -1f; RealDeath("both players are ghosts"); }
+            }
+            else _bothGhostSince = -1f;
         }
 
         // Partner's health bar (display only) while in a dungeon together.

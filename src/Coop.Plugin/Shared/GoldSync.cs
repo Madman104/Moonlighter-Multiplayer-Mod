@@ -23,7 +23,15 @@ namespace Coop.Plugin.Shared
             harmony.Patch(AccessTools.PropertySetter(typeof(Stat), nameof(Stat.Value)),
                 prefix: new HarmonyMethod(typeof(GoldSync), nameof(ValuePrefix)),
                 postfix: new HarmonyMethod(typeof(GoldSync), nameof(ValuePostfix)));
+            // Loading a save sets gold from the slot: that is not spending or earning.
+            harmony.Patch(AccessTools.Method(typeof(HeroMerchantStats), nameof(HeroMerchantStats.Init)),
+                prefix: new HarmonyMethod(typeof(GoldSync), nameof(StatsInitPrefix)),
+                postfix: new HarmonyMethod(typeof(GoldSync), nameof(StatsInitPostfix)));
         }
+
+        private static bool _loadingSave;
+        private static void StatsInitPrefix() => _loadingSave = true;
+        private static void StatsInitPostfix() => _loadingSave = false;
 
         public static void Attach(PeerSession session)
         {
@@ -50,7 +58,7 @@ namespace Coop.Plugin.Shared
 
         private static void ValuePostfix(Stat __instance, float __state)
         {
-            if (float.IsNaN(__state) || _applyingRemote || !Connected(out var s)) return;
+            if (float.IsNaN(__state) || _applyingRemote || _loadingSave || !Connected(out var s)) return;
             int delta = Mathf.RoundToInt((float)__instance.Value - __state);
             if (delta != 0) s.SendGame(MessageType.GoldDelta, new GoldDelta { Delta = delta });
         }

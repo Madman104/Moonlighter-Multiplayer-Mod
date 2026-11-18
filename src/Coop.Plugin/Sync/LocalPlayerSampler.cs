@@ -55,7 +55,7 @@ namespace Coop.Plugin.Sync
             int scene = GameInfo.CurrentSceneId();
             if (will == null)
             {
-                session.SendPlayerState(new PlayerState { Tick = ++_tick, SceneId = -1, Layers = new SpriteLayer[0] });
+                session.SendPlayerState(new PlayerState { Tick = ++_tick, SceneId = -1, Hp = -1f, Layers = new SpriteLayer[0] });
                 return;
             }
             if (will != _cachedWill || scene != _cachedScene || _renderers == null)
