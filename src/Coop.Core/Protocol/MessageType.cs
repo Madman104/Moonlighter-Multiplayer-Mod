@@ -21,5 +21,6 @@ namespace Coop.Core.Protocol
         Revive = 17,
         DayTimeSync = 18,
         PoolSpent = 19,
+        BagSnapshot = 20,
     }
 }

@@ -4,7 +4,7 @@ Written at the end of an unattended session. Start here tomorrow.
 
 ## Where things are
 - **Repo:** this folder (git). Branches are stacked, each one built on the previous:
-  `main` → `feat/coop-stage1` → `feat/coop-stage2` → `feat/coop-stage3` → `feat/coop-stage4` → `feat/coop-stage5` → **`feat/coop-stage6` (checked out, newest)**.
+  `main` → `feat/coop-stage1` → `feat/coop-stage2` → `feat/coop-stage3` → `feat/coop-stage4` → `feat/coop-stage5` → `feat/coop-stage6` → **`feat/coop-stage4b` (checked out, newest: shared bag v1 on top of everything)**.
   Nothing is merged into `main` and nothing is pushed anywhere.
 - **Installed in the game:** the newest build (stage 6a + review fixes, mod 0.6.0) is deployed to `D:\SteamLibrary\steamapps\common\Moonlighter\BepInEx\plugins\MoonlighterCoop\`.
 - **Build & deploy:** close the game, then run `tools\deploy.ps1`. Tests: `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (119 passing).
@@ -23,7 +23,7 @@ Written at the end of an unattended session. Start here tomorrow.
 
 ## Not done yet (next steps, in suggested order)
 1. **Play-test stages 2–6a** using `docs/TESTING.md`. Expect bugs: these use game code paths that couldn't be driven automatically.
-2. **Stage 4b: shared inventory + items.** The biggest missing piece. Loot currently drops only on the host, so the guest can't pick anything up. Needs: one bag synced from the host, pickups as requests to the host, chests opened once.
+2. **Stage 4b: shared inventory.** A first version is built: whole-bag snapshots, last change wins (`Shared/BagSync.cs`). Still missing: per-slot requests to the host, and loot the guest can pick up. Loot currently drops only on the host, so the guest can't pick anything up. Needs: one bag synced from the host, pickups as requests to the host, chests opened once.
 3. **Stage 4c: shop.** You chose "both players can set prices and use the counter". Not started (ShopManager research still needed).
 4. **Stage 3b: enemies moved by the host.** Right now enemy positions differ between screens. See `docs/notes/stage3-enemies-recon.md`.
 5. **Stage 2 limits** listed in `docs/TESTING.md`: the guest's minimap starts revealed, emblem-portal return isn't shared, Unknown/Wanderer DLC floors aren't shared.

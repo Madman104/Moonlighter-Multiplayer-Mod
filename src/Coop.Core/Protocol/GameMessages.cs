@@ -97,3 +97,12 @@ namespace Coop.Core.Protocol
         public bool Secret;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>The sender's whole bag (shared inventory), as the game's ItemSaveInfo list JSON.</summary>
+    public sealed class BagSnapshot
+    {
+        public string Json;
+    }
+}

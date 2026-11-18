@@ -100,6 +100,9 @@ namespace Coop.Core.Protocol
                         var ps = (PoolSpent)msg;
                         w.Write(ps.X); w.Write(ps.Y); w.Write(ps.Secret);
                         break;
+                    case MessageType.BagSnapshot:
+                        w.Write(((BagSnapshot)msg).Json ?? "");
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -176,6 +179,8 @@ namespace Coop.Core.Protocol
                             return (type, new DayTimeSync { Value = rd.ReadByte(), FromBed = rd.ReadBoolean() });
                         case MessageType.PoolSpent:
                             return (type, new PoolSpent { X = rd.ReadInt16(), Y = rd.ReadInt16(), Secret = rd.ReadBoolean() });
+                        case MessageType.BagSnapshot:
+                            return (type, new BagSnapshot { Json = rd.ReadString() });
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
                     }

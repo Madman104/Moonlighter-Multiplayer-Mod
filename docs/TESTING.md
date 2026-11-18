@@ -126,3 +126,18 @@ Needs a person:
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–3 | | | |
+
+## Stage 4b v1 (shared bag)
+
+Automated (2026-11-18): `dotnet test` 121 pass; two connected test copies start with bag sync, no errors.
+
+Needs a person:
+1. **Host's bag wins on connect.** After connecting, the test window's bag shows the host's items.
+2. **Pick up / drop / move.** Change the bag in either window: within about 0.25 s the other window's bag matches (equipment stays separate).
+3. **Stacks and enchanted gear** keep their count and enchantment.
+
+Known limits: if both players change the bag at the same moment, the last change wins. Loot on the floor is still only on the host's screen (stage 3a); the guest picks up nothing yet.
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–3 | | | |
