@@ -17,14 +17,14 @@ Written at the end of an unattended session. Start here tomorrow.
 | 1 Connect & see each other | ✅ tested by you | Steam lobby / IP join from the pause menu; the partner's Will is drawn as a tinted copy |
 | 2 Dungeon rooms together | built, reviewed, fixed | The host's generated floor is sent to the guest, who builds the identical floor; entering, room changes, next floor and returning home are mirrored; host wins clashes |
 | 3a Enemies | built | Shared enemy **health/deaths** (each game runs its own enemy AI); same champions on both; 2x health; each game drops its own loot |
-| 4a Gold | built | One shared purse; the **guest's own save is never written** while connected |
+| 4a Gold | built | One shared purse; the guest's own save keeps only their own bag/equipment from co-op (see below) |
 | 5 Ghosts | built | Die while your partner is alive → ghost; partner uses a healing pool → you revive at half health, pool used up; both down → normal death; partner health bar top-left in dungeons |
 | Own bags (2026-11-18, your change) | built, smoke-tested | Each player keeps their own bag (shared bag removed). Loot is per player. Becoming a ghost drops your bag (not safe slots) where you fell; a ghost can't pick items up; walk back to the pile once revived |
 | 6a Day/bed | built | The host's time of day is the truth; the host's bed ends the day for both; the guest's bed only shows a notice |
 
 ## Not done yet (next steps, in suggested order)
 1. **Play-test stages 2–6a** using `docs/TESTING.md`. Expect bugs: these use game code paths that couldn't be driven automatically.
-2. **Guest progress isn't kept.** With separate bags, the guest's loot and equipment live only in memory: the guest's save is still never written in co-op (gold/day there are the host's). Needs a choice: save the guest's bag/equipment only into their own save, or keep it as is.
+2. **Guest save (your choice: keep bag + gear):** built. When the guest's game saves, it writes a copy of their save from when they joined, with only the current bag, equipment and weapon set put in. Gold, day, story and shop stay as before co-op. Smoke-tested only (the copy is made and reads back); a real save write hasn't been tested yet. If the copy fails, the guest's save isn't written (old behaviour).
 3. **Stage 4c: shop.** You chose "both players can set prices and use the counter". Not started (ShopManager research still needed).
 4. **Stage 3b: enemies moved by the host.** Right now enemy positions differ between screens. See `docs/notes/stage3-enemies-recon.md`.
 5. **Stage 2 limits** listed in `docs/TESTING.md`: the guest's minimap starts revealed, emblem-portal return isn't shared, Unknown/Wanderer DLC floors aren't shared.
@@ -38,7 +38,7 @@ Written at the end of an unattended session. Start here tomorrow.
   - Items dropped by a ghost stay in that room (the room's drop list) until the run ends. Going home or a real death leaves them behind, like a normal death.
   - The Angel Amulet doesn't stop the ghost drop.
 - **Enemies, stage 3a:** each game runs its own enemy AI; only health/deaths are shared. This was faster to build within the remaining usage. The catch: enemies aren't in the same place on both screens. Stage 3b would fix it.
-- **Guest saves:** the guest's game never writes its save while connected (design anti-goal). Progress the guest makes in co-op is therefore not kept in their own save.
+- **Guest saves:** only bag, equipment and weapon set are kept. Item discoveries, recipes seen and achievements from co-op are not kept in the guest's save.
 - **Guest bed:** only shows a notice; it doesn't ask the host to sleep.
 - **Ghost rules:** a ghost can't be hurt, can't hurt enemies and can't use pools. Revive gives half health. If the partner disconnects while you're a ghost, you die normally.
 - **Gold:** the host's total is pushed every 2 s; the guest's spending is sent as changes. A quick double-spend by both at the same moment is possible.

@@ -152,3 +152,4 @@ Manual checklist (not played yet):
 4. As a ghost, walk over the pile: nothing is picked up or pulled toward you.
 5. Partner uses a healing pool: you revive, walk back to the pile and pick everything up.
 6. Leave the room and come back before picking up: the pile is still there.
+7. Guest save: as the guest, pick up loot in co-op, go home, leave co-op, then reload your save. Your new bag items and gear are there. Your gold and day are what they were before you joined.
