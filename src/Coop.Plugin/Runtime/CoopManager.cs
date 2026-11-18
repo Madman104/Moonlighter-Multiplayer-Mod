@@ -4,6 +4,7 @@ using Coop.Core.Net;
 using Coop.Core.Protocol;
 using Coop.Core.Session;
 using Coop.Plugin.TestMode;
+using DigitalSunGames.Platforms;
 using UnityEngine;
 
 namespace Coop.Plugin.Runtime
@@ -14,6 +15,12 @@ namespace Coop.Plugin.Runtime
     /// </summary>
     internal sealed class CoopManager : MonoBehaviour
     {
+        /// <summary>
+        /// After the session closes on its own (reject, timeout), the link stays open this long
+        /// so the last reliable message (e.g. the reject reason) still reaches the other side.
+        /// </summary>
+        public const float LingerSeconds = 1f;
+
         public static CoopManager Instance { get; private set; }
 
         public PeerSession Session { get; private set; }
@@ -24,6 +31,10 @@ namespace Coop.Plugin.Runtime
         public event Action<string> SessionClosed;
 
         private ITransport _transport;
+        private ITransport _lingering;
+        private float _lingerUntil;
+        private string _lingerReason;
+        private bool _autoArgsHandled;
 
         public static void Create()
         {
@@ -31,16 +42,19 @@ namespace Coop.Plugin.Runtime
             DontDestroyOnLoad(go);
             go.hideFlags = HideFlags.HideAndDontSave;
             Instance = go.AddComponent<CoopManager>();
-            go.AddComponent<CoopWindow>();
+            go.AddComponent<CoopToast>();
             go.AddComponent<Sync.PlayerSync>();
         }
 
         /// <summary>
         /// Launch options for testing without clicking: --coop-auto-host, or
-        /// --coop-auto-join &lt;address&gt;. Both use the configured port.
+        /// --coop-auto-join &lt;address&gt;. Both use the configured port. Handled once the
+        /// game's platform layer is up, so the DLC list in the handshake is correct.
         /// </summary>
-        private void Awake()
+        private void HandleAutoArgs()
         {
+            if (_autoArgsHandled || Platform.DLC == null) return;
+            _autoArgsHandled = true;
             var args = Environment.GetCommandLineArgs();
             for (int i = 0; i < args.Length; i++)
             {
@@ -67,7 +81,7 @@ namespace Coop.Plugin.Runtime
             }
             // Same-PC test connections share this install, so their DLC matches by definition.
             t.Connected += () => { if (Session != null) Session.IgnoreDlc = t.RemoteIsLoopback; };
-            Start(t, $"Hosting on port {port}, waiting for the other player...");
+            Begin(t, $"Hosting on port {port}, waiting for the other player...");
         }
 
         public void JoinTcp(string address, int port)
@@ -84,19 +98,21 @@ namespace Coop.Plugin.Runtime
                 CoopPlugin.Log.LogWarning(Status);
                 return;
             }
-            Start(t, $"Connecting to {address}:{port}...");
+            Begin(t, $"Connecting to {address}:{port}...");
         }
 
-        public void StartWith(ITransport transport, string status) => Start(transport, status);
+        public void StartWith(ITransport transport, string status) => Begin(transport, status);
 
+        /// <summary>Leave on purpose: tell the other player and close at once.</summary>
         public void Leave()
         {
             if (Session != null && Session.State != SessionState.Closed)
                 Session.Close("You left");
-            Teardown();
+            DisposeTransport(ref _transport);
+            FinishLinger();
         }
 
-        private void Start(ITransport transport, string status)
+        private void Begin(ITransport transport, string status)
         {
             _transport = transport;
             Session = new PeerSession(transport, BuildHello(), TestClientMode.Active, () => Time.realtimeSinceStartup);
@@ -130,25 +146,43 @@ namespace Coop.Plugin.Runtime
             CoopPlugin.Log.LogInfo("Co-op: " + Status);
             if (state == SessionState.Closed)
             {
-                var reason = Session.CloseReason;
-                Teardown();
-                SessionClosed?.Invoke(reason);
+                // Keep the link open briefly so a final Reject/Bye is delivered, then clean up.
+                FinishLinger();
+                _lingering = _transport;
+                _transport = null;
+                _lingerUntil = Time.realtimeSinceStartup + LingerSeconds;
+                _lingerReason = Session.CloseReason;
             }
         }
 
-        private void Teardown()
+        private void FinishLinger()
         {
-            if (_transport != null)
-            {
-                try { _transport.Dispose(); }
-                catch (Exception e) { CoopPlugin.Log.LogWarning("Transport dispose failed: " + e.Message); }
-                _transport = null;
-            }
+            if (_lingerReason == null && _lingering == null) return;
+            DisposeTransport(ref _lingering);
+            var reason = _lingerReason;
+            _lingerReason = null;
+            if (reason != null) SessionClosed?.Invoke(reason);
+        }
+
+        private static void DisposeTransport(ref ITransport t)
+        {
+            if (t == null) return;
+            try { t.Dispose(); }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Transport dispose failed: " + e.Message); }
+            t = null;
         }
 
         private void Update()
         {
             if (!TestClientMode.Active) Steam.SteamLobby.EnsureInitialized();
+            HandleAutoArgs();
+
+            if (_lingering != null || _lingerReason != null)
+            {
+                try { _lingering?.Poll(); } catch (Exception) { /* closing anyway */ }
+                if (Time.realtimeSinceStartup >= _lingerUntil) FinishLinger();
+            }
+
             if (Session == null || _transport == null) return;
             try
             {
@@ -157,7 +191,8 @@ namespace Coop.Plugin.Runtime
             catch (Exception e)
             {
                 CoopPlugin.Log.LogError("Co-op session error: " + e);
-                Session.Close("Error: " + e.Message);
+                try { Session.Close("Error: " + e.Message); }
+                catch (Exception) { DisposeTransport(ref _transport); }
             }
         }
 

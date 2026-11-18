@@ -31,7 +31,6 @@ namespace Coop.Plugin.Steam
         {
             if (_instance != null || !Available) return;
             _instance = new SteamLobby();
-            CoopWindow.HostSteam = () => _instance.Host();
             CoopPlugin.Log.LogInfo("Steam co-op ready");
             _instance.HandleLaunchArgs();
         }
@@ -51,6 +50,8 @@ namespace Coop.Plugin.Steam
                 if (args[i] == "+connect_lobby" && ulong.TryParse(args[i + 1], out var id))
                     Join(new CSteamID(id));
         }
+
+        public static void HostNow() => _instance?.Host();
 
         public void Host()
         {

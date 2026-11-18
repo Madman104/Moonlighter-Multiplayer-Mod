@@ -20,12 +20,12 @@
 Setup: run `tools\deploy.ps1` with the game closed.
 
 1. **Two copies at once.** Start Moonlighter through Steam (host). Then run `tools\launch-test-client.ps1`. Both windows stay open.
-2. **Connect.** Host window: F8, then **Host (IP)**. Allow the Windows Firewall prompt if it appears. Test window: F8, then **Join (IP)** with `127.0.0.1`. Both show `Connected`.
-3. **See each other.** Load your save in both windows and walk around town in the host window. In the test window, a blue-tinted Will labelled P1 follows you: it walks, faces the right way and animates smoothly. Then try it the other way around.
-4. **Different places.** Walk one Will into the shop or the dungeon while the other stays in town. The puppet is off-screen or hidden, never stuck in the wrong place.
+2. **Connect.** Load a save in both windows. Host window: pause, **CO-OP**, **HOST (IP)**. Allow the Windows Firewall prompt if it appears. Test window: pause, **CO-OP**, **JOIN 127.0.0.1**. The status line in both menus shows `Connected`, and a notice appears at the top of the screen. The CO-OP page uses the game's own buttons, works with mouse, keyboard and controller, and Back returns to the pause page.
+3. **See each other.** Resume and walk around town in the host window. In the test window, a blue-tinted Will labelled P1 follows you: it walks, faces the right way and animates smoothly. Then try it the other way around.
+4. **Different places.** Walk one Will into a dungeon while the other stays in town: the puppet disappears (dungeons are shared from stage 2). Inside the shop the puppet stays at its real position.
 5. **Disconnect.** Close the test window. Within 10 s the host shows `Closed: Disconnected`, the puppet disappears, and the game keeps running.
 6. **Test-client saves.** Save in the test window and quit it. Only files in `%USERPROFILE%\AppData\LocalLow\11BitStudios\Moonlighter\CoopTestClient\` change.
-7. **Steam lobby (one account).** Host window: F8, then **Host (Steam)**. The Steam overlay opens an invite dialog listing your friends.
+7. **Steam lobby (one account).** Host window: pause, **CO-OP**, **HOST (STEAM)**. The Steam overlay opens an invite dialog listing your friends.
 8. **Steam join (needs a second Steam account that owns Moonlighter).** The friend accepts the invite and both show `Connected`. Not yet possible to test.
 
 Results:

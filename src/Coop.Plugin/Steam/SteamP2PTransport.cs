@@ -13,6 +13,8 @@ namespace Coop.Plugin.Steam
     internal sealed class SteamP2PTransport : ITransport
     {
         private const int Channel = 0;
+        private const int MaxUnreliableBytes = 1200;
+        private bool _loggedSendFailure;
 
         private readonly Queue<byte[]> _inbox = new Queue<byte[]>();
         private CSteamID _remote = CSteamID.Nil;
@@ -54,8 +56,14 @@ namespace Coop.Plugin.Steam
         public void Send(byte[] payload, bool reliable)
         {
             if (_closed || _remote == CSteamID.Nil) return;
+            // Steam drops unreliable packets over 1200 bytes, so big ones go reliable instead.
+            if (!reliable && payload.Length > MaxUnreliableBytes) reliable = true;
             var type = reliable ? EP2PSend.k_EP2PSendReliable : EP2PSend.k_EP2PSendUnreliableNoDelay;
-            SteamNetworking.SendP2PPacket(_remote, payload, (uint)payload.Length, type, Channel);
+            if (!SteamNetworking.SendP2PPacket(_remote, payload, (uint)payload.Length, type, Channel) && !_loggedSendFailure)
+            {
+                _loggedSendFailure = true;
+                CoopPlugin.Log.LogWarning($"Steam refused a {payload.Length}-byte packet (reliable={reliable})");
+            }
         }
 
         public bool TryReceive(out byte[] payload)

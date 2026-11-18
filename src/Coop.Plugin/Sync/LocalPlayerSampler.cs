@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Coop.Core.Protocol;
 using Coop.Core.Session;
 using Coop.Core.Sync;
@@ -20,6 +21,7 @@ namespace Coop.Plugin.Sync
         private int _cachedScene = int.MinValue;
         private float _nextSend;
         private uint _tick;
+        private bool _loggedCount;
 
         public static string KeyOf(Sprite s)
         {
@@ -65,12 +67,14 @@ namespace Coop.Plugin.Sync
 
             var root = will.transform;
             int count = Math.Min(_renderers.Length, 255);
-            var layers = new SpriteLayer[count];
+            if (!_loggedCount) { _loggedCount = true; CoopPlugin.Log.LogInfo("Will has " + _renderers.Length + " sprite renderers"); }
+            var layers = new List<SpriteLayer>(count);
             for (int i = 0; i < count; i++)
             {
                 var r = _renderers[i];
+                // Only visible layers go on the wire, keeping packets small (Steam caps unreliable packets at 1200 bytes).
+                if (r == null || r.sprite == null || !r.enabled || !r.gameObject.activeInHierarchy) continue;
                 var layer = new SpriteLayer { Slot = (byte)i };
-                if (r != null)
                 {
                     ushort id = _ids.GetOrAdd(KeyOf(r.sprite), out bool isNew);
                     if (isNew) session.SendSpriteDef(new SpriteDef { Id = id, Key = KeyOf(r.sprite) });
@@ -83,7 +87,7 @@ namespace Coop.Plugin.Sync
                     layer.LocalX = local.x;
                     layer.LocalY = local.y;
                 }
-                layers[i] = layer;
+                layers.Add(layer);
             }
 
             var p = root.position;
@@ -94,7 +98,7 @@ namespace Coop.Plugin.Sync
                 X = p.x,
                 Y = p.y,
                 Z = p.z,
-                Layers = layers,
+                Layers = layers.ToArray(),
             });
         }
     }

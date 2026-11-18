@@ -43,10 +43,14 @@ namespace Coop.Core.Tests.Session
             _peer._pendingDisconnect = reason;
         }
 
+        /// <summary>Drops this many upcoming sends (simulates lost packets).</summary>
+        public int DropNextSends;
+
         public void Send(byte[] payload, bool reliable)
         {
             SentCount++;
             LastSendReliable = reliable;
+            if (DropNextSends > 0) { DropNextSends--; return; }
             if (_peer != null && !_peer.Disposed) _peer._inbox.Enqueue(payload);
         }
 

@@ -99,6 +99,19 @@ namespace Coop.Core.Tests.Session
         }
 
         [Fact]
+        public void Handshake_stuck_while_pings_flow_times_out()
+        {
+            var (host, client, _, ct) = Pair(H(), H());
+            host.Tick();   // host: connected, waiting for Hello
+            ct.DropNextSends = 1; // the client's Hello is lost
+            client.Tick(); // client: connected, Hello "sent"
+            for (int i = 0; i < 12; i++) { _now += 1.0; Pump(host, client, 2); }
+            Assert.Equal(SessionState.Closed, client.State);
+            Assert.Equal("Timed out", client.CloseReason);
+            Assert.Equal(SessionState.Closed, host.State);
+        }
+
+        [Fact]
         public void Player_state_from_host_reaches_client_unreliably()
         {
             var (host, client, ht, _) = Pair(H(), H());

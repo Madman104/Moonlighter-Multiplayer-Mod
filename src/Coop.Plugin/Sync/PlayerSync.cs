@@ -11,10 +11,12 @@ namespace Coop.Plugin.Sync
         private RemotePlayerPuppet _puppet;
         private PeerSession _hooked;
 
-        private void Start()
+        // Awake, not Start: a session started by launch options must not be missed.
+        private void Awake()
         {
             CoopManager.Instance.SessionStarted += OnSessionStarted;
             CoopManager.Instance.SessionClosed += _ => RemovePuppet();
+            if (CoopManager.Instance.Session != null) OnSessionStarted();
         }
 
         private void OnSessionStarted()

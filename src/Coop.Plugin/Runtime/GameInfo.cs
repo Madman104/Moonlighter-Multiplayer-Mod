@@ -1,4 +1,5 @@
 using System.Linq;
+using Coop.Core.Sync;
 using DigitalSunGames.Platforms;
 using UnityEngine;
 
@@ -20,14 +21,14 @@ namespace Coop.Plugin.Runtime
         }
 
         /// <summary>
-        /// Build index of the scene the local Will is in (town or dungeon), or -1 when there
-        /// is no Will (main menu, loading).
+        /// Where the local Will is (see LocationId). The Will itself is never moved between
+        /// scenes, so this comes from which game scenes are loaded.
         /// </summary>
         public static int CurrentSceneId()
         {
-            var will = HeroMerchant.Instance;
-            if (will == null) return -1;
-            return will.gameObject.scene.buildIndex;
+            var gm = GameManager.Instance;
+            if (gm == null) return LocationId.None;
+            return LocationId.From(HeroMerchant.Instance != null, gm.IsTownSceneLoaded(), gm.IsDungeonSceneLoaded());
         }
     }
 }

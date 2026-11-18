@@ -76,6 +76,8 @@ namespace Coop.Plugin.Sync
             var localWill = HeroMerchant.Instance;
             var localRenderers = localWill != null ? LocalPlayerSampler.RenderersOf(localWill) : null;
 
+            // Only visible layers are sent; any slot not in this update is hidden.
+            foreach (var slot in _slots) slot.enabled = false;
             foreach (var layer in _latest.Layers)
             {
                 var r = SlotRenderer(layer.Slot, localRenderers);
@@ -87,7 +89,6 @@ namespace Coop.Plugin.Sync
                 r.sortingOrder = layer.SortingOrder;
                 r.transform.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
             }
-            for (int i = _latest.Layers.Length; i < _slots.Count; i++) _slots[i].enabled = false;
         }
 
         private SpriteRenderer SlotRenderer(int slot, SpriteRenderer[] localRenderers)

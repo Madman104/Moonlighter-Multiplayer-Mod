@@ -30,6 +30,7 @@ namespace Coop.Core.Session
         private double _lastReceive;
         private double _lastPing;
         private uint _pingNonce;
+        private double _handshakeStart;
 
         public SessionState State { get; private set; } = SessionState.Idle;
         public string CloseReason { get; private set; }
@@ -82,6 +83,8 @@ namespace Coop.Core.Session
                 }
                 if (now - _lastReceive > Timeout)
                     CloseQuietly("Timed out");
+                else if (State == SessionState.Handshaking && now - _handshakeStart > Timeout)
+                    CloseQuietly("Timed out"); // pings flow but the handshake never finished
             }
         }
 
@@ -110,6 +113,7 @@ namespace Coop.Core.Session
             if (State != SessionState.Idle) return;
             double now = _clock();
             _lastReceive = now;
+            _handshakeStart = now;
             _lastPing = now;
             SetState(SessionState.Handshaking);
             if (!_transport.IsHost)

@@ -20,8 +20,11 @@ namespace Coop.Plugin
             Log = Logger;
             Log.LogInfo($"Moonlighter Co-op {ModVersion} loaded");
             CoopConfig.Bind(Config);
+            // Keep simulating and networking when the window loses focus (two windows on one PC, alt-tab).
+            UnityEngine.Application.runInBackground = true;
             _harmony = new Harmony(Guid);
             PlatformPatches.Apply(_harmony);
+            Menu.CoopPauseMenu.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }
