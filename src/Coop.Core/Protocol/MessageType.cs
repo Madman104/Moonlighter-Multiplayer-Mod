@@ -1,0 +1,13 @@
+namespace Coop.Core.Protocol
+{
+    public enum MessageType : byte
+    {
+        Hello = 1,
+        Welcome = 2,
+        Reject = 3,
+        PlayerState = 4,
+        Ping = 5,
+        Pong = 6,
+        Bye = 7,
+    }
+}
