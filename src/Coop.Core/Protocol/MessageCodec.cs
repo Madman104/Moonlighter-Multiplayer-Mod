@@ -71,6 +71,9 @@ namespace Coop.Core.Protocol
                             for (int j = 0; j < System.Math.Min(ls.Length, 255); j++) WriteLayer(w, ls[j]);
                         }
                         break;
+                    case MessageType.PlayerName:
+                        w.Write(((PlayerName)msg).Name ?? "");
+                        break;
                     case MessageType.EnemyOwners:
                         var eo = (EnemyOwners)msg;
                         var owned = eo.GuestOwned ?? new ushort[0];
@@ -195,6 +198,8 @@ namespace Coop.Core.Protocol
                             }
                             return (type, es);
                         }
+                        case MessageType.PlayerName:
+                            return (type, new PlayerName { Name = rd.ReadString() });
                         case MessageType.EnemyOwners:
                         {
                             var eo = new EnemyOwners { Key = rd.ReadInt32() };

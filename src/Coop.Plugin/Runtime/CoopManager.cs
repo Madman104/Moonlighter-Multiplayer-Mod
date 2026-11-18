@@ -120,6 +120,7 @@ namespace Coop.Plugin.Runtime
             Session.StateChanged += OnStateChanged;
             Status = status;
             CoopPlugin.Log.LogInfo(status);
+            PlayerNames.Attach(Session);
             Dungeon.FloorSync.Attach(Session);
             Dungeon.TravelSync.Attach(Session);
             Dungeon.EnemySync.Attach(Session);

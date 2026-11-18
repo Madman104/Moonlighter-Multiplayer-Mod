@@ -140,10 +140,10 @@ namespace Coop.Plugin.Sync
                 if (r.enabled) top = Mathf.Max(top, r.bounds.max.y);
             var screen = Camera.main.WorldToScreenPoint(new Vector3(transform.position.x, top, transform.position.z));
             if (screen.z < 0) return;
-            var rect = new Rect(screen.x - 20, Screen.height - screen.y - 22, 40, 20);
+            var rect = new Rect(screen.x - 120, Screen.height - screen.y - 24, 240, 22);
             var style = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold };
             style.normal.textColor = Tint;
-            GUI.Label(rect, Label, style);
+            GUI.Label(rect, PlayerNames.Partner, style);
         }
     }
 }

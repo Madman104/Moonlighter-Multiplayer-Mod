@@ -181,3 +181,21 @@ namespace Coop.Core.Protocol
         public ushort[] GuestOwned = new ushort[0];
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Each player's display name (Steam name), sent once after connecting.</summary>
+    public sealed class PlayerName
+    {
+        public const int MaxLength = 24;
+        public string Name = "";
+
+        /// <summary>Trimmed, one line, at most MaxLength characters; "Player" if empty.</summary>
+        public static string Clean(string raw)
+        {
+            var s = (raw ?? "").Replace('\r', ' ').Replace('\n', ' ').Trim();
+            if (s.Length == 0) return "Player";
+            return s.Length > MaxLength ? s.Substring(0, MaxLength) : s;
+        }
+    }
+}

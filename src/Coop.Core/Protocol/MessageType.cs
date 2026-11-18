@@ -29,5 +29,6 @@ namespace Coop.Core.Protocol
         EntityStates = 25,
         ShopOpen = 26,
         EnemyOwners = 27,
+        PlayerName = 28,
     }
 }

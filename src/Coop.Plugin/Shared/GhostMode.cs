@@ -27,6 +27,7 @@ namespace Coop.Plugin.Shared
 
         private static bool _realDeath;
         private GUIStyle _label;
+        private float _labelScale;
 
         public static void Apply(Harmony harmony)
         {
@@ -295,20 +296,24 @@ namespace Coop.Plugin.Shared
         private void OnGUI()
         {
             if (!Connected(out var s) || !InSharedDungeon() || PartnerHp < 0f || PartnerMaxHp <= 0f) return;
-            if (_label == null)
+            // Below the game's own health bar, bag icon and gold (top-left), scaled with the screen.
+            float k = Screen.height / 1080f;
+            if (_label == null || _labelScale != k)
             {
-                _label = new GUIStyle(GUI.skin.label) { fontSize = 16, fontStyle = FontStyle.Bold };
-                _label.normal.textColor = new Color(0.85f, 0.95f, 0.8f);
+                _labelScale = k;
+                _label = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(20 * k), fontStyle = FontStyle.Bold };
+                _label.normal.textColor = new Color(0.95f, 0.95f, 0.9f);
             }
-            const float x = 24f, y = 110f, w = 220f, h = 16f;
-            string who = s.IsHost ? "P2" : "P1";
-            GUI.Label(new Rect(x, y - 22f, 260f, 22f), PartnerGhost ? who + " (ghost - find a healing pool)" : who, _label);
+            float x = 28f * k, y = 236f * k, w = 200f * k, h = 18f * k;
+            string who = PlayerNames.Partner;
+            string text = PartnerGhost ? who + " - ghost: use a healing pool" : who + "  " + Mathf.CeilToInt(PartnerHp) + "/" + Mathf.CeilToInt(PartnerMaxHp);
+            GUI.Label(new Rect(x, y - 28f * k, 600f * k, 28f * k), text, _label);
             var old = GUI.color;
             GUI.color = new Color(0f, 0f, 0f, 0.6f);
             GUI.DrawTexture(new Rect(x, y, w, h), Texture2D.whiteTexture);
             float frac = Mathf.Clamp01(PartnerHp / PartnerMaxHp);
-            GUI.color = PartnerGhost ? new Color(0.6f, 0.6f, 0.8f, 0.8f) : new Color(0.85f, 0.2f, 0.2f, 1f);
-            GUI.DrawTexture(new Rect(x + 2f, y + 2f, (w - 4f) * frac, h - 4f), Texture2D.whiteTexture);
+            GUI.color = PartnerGhost ? new Color(0.6f, 0.6f, 0.8f, 0.8f) : new Color(0.94f, 0.33f, 0.29f, 1f);
+            GUI.DrawTexture(new Rect(x + 2f * k, y + 2f * k, (w - 4f * k) * frac, h - 4f * k), Texture2D.whiteTexture);
             GUI.color = old;
         }
     }
