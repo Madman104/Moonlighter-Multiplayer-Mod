@@ -17,11 +17,21 @@ namespace Coop.Plugin.Dungeon
         private static readonly List<Job> Jobs = new List<Job>();
 
         /// <summary>Runs tryApply now; if it returns false (room not here yet), retries it later.</summary>
-        public static void Run(string what, Func<bool> tryApply)
+        public static void Run(string what, Func<bool> tryApply) => Run(what, tryApply, KeepFor);
+
+        /// <summary>As Run, kept for keepFor seconds (PositiveInfinity: until tryApply says done, e.g. on a floor change).</summary>
+        public static void Run(string what, Func<bool> tryApply, float keepFor)
         {
             if (Attempt(tryApply)) return;
-            Jobs.Add(new Job { Until = Time.realtimeSinceStartup + KeepFor, Try = tryApply, What = what });
+            Jobs.Add(new Job { Until = Time.realtimeSinceStartup + keepFor, Try = tryApply, What = what });
         }
+
+        /// <summary>True when the room is the one this player is in (rooms elsewhere are asleep).</summary>
+        public static bool IsCurrent(DungeonRoom room)
+            => room != null && DungeonManager.Instance != null && DungeonManager.Instance.currentDungeonRoom == room;
+
+        /// <summary>Until this player walks into that room (or leaves the floor).</summary>
+        public const float UntilEntered = float.PositiveInfinity;
 
         public static void Clear() => Jobs.Clear();
 

@@ -24,8 +24,6 @@ namespace Coop.Plugin.Sync
 
         private static readonly SpriteNameMap Names = new SpriteNameMap();
         private static readonly Dictionary<ushort, Puppet> Puppets = new Dictionary<ushort, Puppet>();
-        private static Dictionary<string, Sprite> _spriteCache;
-        private static float _nextCacheRefresh;
         private static readonly HashSet<string> Missing = new HashSet<string>();
 
         public static void Attach(CoopLink session)
@@ -100,17 +98,8 @@ namespace Coop.Plugin.Sync
         private static Sprite Resolve(string key)
         {
             if (key == null) return null;
-            if (_spriteCache == null || (!_spriteCache.ContainsKey(key) && Time.realtimeSinceStartup >= _nextCacheRefresh))
-            {
-                _nextCacheRefresh = Time.realtimeSinceStartup + SpriteCacheRefreshSeconds;
-                _spriteCache = new Dictionary<string, Sprite>();
-                foreach (var s in Resources.FindObjectsOfTypeAll<Sprite>())
-                {
-                    var k = LocalPlayerSampler.KeyOf(s);
-                    if (k != null && !_spriteCache.ContainsKey(k)) _spriteCache[k] = s;
-                }
-            }
-            if (_spriteCache.TryGetValue(key, out var sprite)) return sprite;
+            var sprite = SpriteLookup.Get(key);
+            if (sprite != null) return sprite;
             if (Missing.Add(key) && Missing.Count <= 5) CoopPlugin.Log.LogInfo("Customer sprite not loaded here: " + key);
             return null;
         }

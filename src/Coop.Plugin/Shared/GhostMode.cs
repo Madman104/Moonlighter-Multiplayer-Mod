@@ -9,20 +9,19 @@ using UnityEngine;
 namespace Coop.Plugin.Shared
 {
     /// <summary>
-    /// Stage 5: dying in a shared dungeon while the partner is alive makes you a ghost
-    /// (see-through, can't be hurt, can't hurt enemies, can't use pools). The living partner
-    /// revives you by using a healing pool, which is then used up. Both down = normal death.
-    /// Becoming a ghost drops your bag (except safe slots) where you fell, in that room; a
-    /// ghost can't pick items up, so walk back to the pile after being revived.
-    /// Up to four players: you become a ghost while anyone else is alive; a healing pool used
-    /// by a living player revives every ghost; when nobody is left alive it's a real death.
+    /// Dying in a shared dungeon while someone else is alive: you spectate. Your Will is hidden,
+    /// can't move, be hurt, hurt enemies or touch anything, and your view follows a living
+    /// player (lowest player number) from room to room and floor to floor. Nothing is dropped.
+    /// The run ends for you as a normal death - the game's own results screen and item loss,
+    /// exactly like solo - when the watched players go home, or when nobody is left alive.
+    /// (The class keeps its old name; "ghost" in messages means "out of play".)
     /// </summary>
     internal sealed class GhostMode : MonoBehaviour
     {
         public const float GhostAlpha = 0.4f;
 
         public static bool LocalGhost { get; private set; }
-        private sealed class Other { public float Hp = -1f; public bool Ghost; public float At; }
+        private sealed class Other { public float Hp = -1f; public bool Ghost; public float At; public Vector2 Pos; public int Room = PlayerState.NoRoom; public int Scene = -1; }
         private static readonly System.Collections.Generic.Dictionary<int, Other> Others = new System.Collections.Generic.Dictionary<int, Other>();
 
         private static bool Fresh(Other o) => Time.realtimeSinceStartup - o.At < 5f;
@@ -74,6 +73,9 @@ namespace Coop.Plugin.Shared
                 o.Hp = s.Hp;
                 o.Ghost = s.Ghost;
                 o.At = Time.realtimeSinceStartup;
+                o.Pos = new Vector2(s.X, s.Y);
+                o.Room = s.RoomKey;
+                o.Scene = s.SceneId;
             };
             session.PeerLeft += i =>
             {
@@ -190,7 +192,10 @@ namespace Coop.Plugin.Shared
 
         private static bool PoolPrefix(HealingArea __instance)
         {
-            if (LocalGhost) return false; // ghosts can't use pools
+            if (LocalGhost) return false; // spectators can't use pools
+            return true; // spectating players aren't revived: pools just heal
+#pragma warning disable CS0162
+
             var t = Traverse.Create(__instance);
             float pool = t.Field("healingHealth").GetValue<float>();
             if (!GhostRules.CanRevive(LocalGhost, AnyOtherGhost(), pool) || !Connected(out var s)) return true;
@@ -202,6 +207,7 @@ namespace Coop.Plugin.Shared
             Drain(__instance);
             CoopPlugin.Log.LogInfo("Co-op: healing pool used to revive the ghosts");
             return false;
+#pragma warning restore CS0162
         }
 
         /// <summary>Empties a healing pool and darkens it, as the game does when it runs dry.</summary>
@@ -243,10 +249,82 @@ namespace Coop.Plugin.Shared
         private static void Enter()
         {
             LocalGhost = true;
-            _dropPending = true; // done in LateUpdate, outside the health setter's callback
+            _spectateStarted = false; // set up in LateUpdate, outside the health setter's callback
             // Health is raised to 1 in LateUpdate: we're inside the health setter's callback here,
             // and the setter would overwrite a value set now.
-            CoopPlugin.Log.LogInfo("Co-op: you are a ghost. Your partner can revive you at a healing pool.");
+            CoopPlugin.Log.LogInfo("Co-op: you died; spectating until your partner goes home or everyone is down");
+            CoopToast.Show("You died. Spectating your partner - your bag is lost as usual when the run ends");
+        }
+
+        // ---- spectating ----
+
+        private static bool _spectateStarted;
+        private static int _askedRoom = PlayerState.NoRoom;
+        private static float _askedAt;
+        private static readonly System.Collections.Generic.List<Collider2D> Disabled = new System.Collections.Generic.List<Collider2D>();
+
+        /// <summary>The living player to watch (lowest player number), or null.</summary>
+        private static Other Target()
+        {
+            int scene = GameInfo.CurrentSceneId();
+            Other best = null;
+            int bestKey = int.MaxValue;
+            foreach (var kv in Others)
+            {
+                var o = kv.Value;
+                if (!Fresh(o) || o.Ghost || o.Hp == 0f || o.Scene != scene) continue;
+                if (kv.Key < bestKey) { bestKey = kv.Key; best = o; }
+            }
+            return best;
+        }
+
+        /// <summary>Will is hidden, can't move or touch anything, and is carried along with the watched player.</summary>
+        private static void Spectate(HeroMerchant hm)
+        {
+            var ctrl = hm.heroMerchantController;
+            if (!_spectateStarted)
+            {
+                _spectateStarted = true;
+                Disabled.Clear();
+                foreach (var c in hm.GetComponentsInChildren<Collider2D>(true))
+                    if (c != null && c.enabled) { c.enabled = false; Disabled.Add(c); }
+            }
+            try { ctrl.DisableMoveInput(); ctrl.ForbidMovement(); } catch (Exception) { }
+            var t = Target();
+            if (t == null) return;
+            var dm = DungeonManager.Instance;
+            if (dm != null && t.Room != PlayerState.NoRoom && !Dungeon.FloorSync.ClientBuilding)
+            {
+                var cur = dm.currentDungeonRoom;
+                bool there = cur != null && Coop.Core.Dungeon.EnemyOwnership.RoomKey(cur.x, cur.y, cur.isSecret) == t.Room;
+                // Changing room takes a moment (fade): ask once per room, again after 3 s if it didn't happen.
+                if (!there && (t.Room != _askedRoom || Time.realtimeSinceStartup - _askedAt > 3f))
+                {
+                    _askedRoom = t.Room;
+                    _askedAt = Time.realtimeSinceStartup;
+                    var room = Dungeon.FloorItems.FindRoom(t.Room);
+                    if (room != null)
+                    {
+                        try { dm.SpecialChangeRoomTo(room, false); }
+                        catch (Exception e) { CoopPlugin.Log.LogWarning("Could not follow the watched player's room: " + e.Message); }
+                    }
+                }
+            }
+            var pos = new Vector3(t.Pos.x, t.Pos.y, hm.transform.position.z);
+            hm.transform.position = pos;
+            var rb = hm.GetComponent<Rigidbody2D>();
+            if (rb != null) { rb.position = t.Pos; rb.velocity = Vector2.zero; }
+        }
+
+        private static void StopSpectating(HeroMerchant hm)
+        {
+            _askedRoom = PlayerState.NoRoom;
+            if (!_spectateStarted) return;
+            _spectateStarted = false;
+            foreach (var c in Disabled) if (c != null) c.enabled = true;
+            Disabled.Clear();
+            if (hm == null) return;
+            try { hm.heroMerchantController.AllowMovement(); hm.heroMerchantController.EnableMoveInput(); } catch (Exception) { }
         }
 
         private static void RealDeath(string why)
@@ -265,6 +343,7 @@ namespace Coop.Plugin.Shared
             LocalGhost = false;
             _dropPending = false;
             var hm = HeroMerchant.Instance;
+            StopSpectating(hm);
             if (hm == null) return;
             hm.heroMerchantStats.currentHealth.Value = Mathf.Max(1f, health);
             SetAlpha(hm, 1f);
@@ -291,13 +370,10 @@ namespace Coop.Plugin.Shared
         {
             var hm = HeroMerchant.Instance;
             if (!LocalGhost || hm == null) { _bothGhostSince = -1f; return; }
-            SetAlpha(hm, GhostAlpha);
-            if (_dropPending)
-            {
-                _dropPending = false;
-                try { DropBag(); }
-                catch (Exception e) { CoopPlugin.Log.LogWarning("Could not drop the bag: " + e.Message); }
-            }
+            SetAlpha(hm, 0f); // spectating: Will is not shown
+            _dropPending = false; // the bag isn't dropped: it's lost like a solo death when the run ends
+            try { Spectate(hm); }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Spectating failed: " + e.Message); }
             if ((float)hm.heroMerchantStats.currentHealth.Value <= 0f)
                 hm.heroMerchantStats.currentHealth.Value = 1f; // keep the controller alive
 

@@ -361,6 +361,7 @@ namespace Coop.Core.Protocol
             w.Write(s.Hp);
             w.Write(s.MaxHp);
             w.Write(s.Ghost);
+            w.Write(s.RoomKey);
         }
 
         private static void WriteLayer(BinaryWriter w, SpriteLayer l)
@@ -370,6 +371,7 @@ namespace Coop.Core.Protocol
             byte flags = (byte)((l.Visible ? 1 : 0) | (l.FlipX ? 2 : 0));
             w.Write(flags);
             w.Write(l.SortingOrder);
+            w.Write(l.SortingLayerId);
             w.Write(l.LocalX);
             w.Write(l.LocalY);
         }
@@ -381,6 +383,7 @@ namespace Coop.Core.Protocol
             l.Visible = (flags & 1) != 0;
             l.FlipX = (flags & 2) != 0;
             l.SortingOrder = rd.ReadInt16();
+            l.SortingLayerId = rd.ReadInt32();
             l.LocalX = rd.ReadSingle();
             l.LocalY = rd.ReadSingle();
             return l;
@@ -402,6 +405,7 @@ namespace Coop.Core.Protocol
             s.Hp = rd.ReadSingle();
             s.MaxHp = rd.ReadSingle();
             s.Ghost = rd.ReadBoolean();
+            s.RoomKey = rd.ReadInt32();
             return s;
         }
     }

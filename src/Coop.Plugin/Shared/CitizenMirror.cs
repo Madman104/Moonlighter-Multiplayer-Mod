@@ -35,8 +35,6 @@ namespace Coop.Plugin.Shared
         private static readonly Dictionary<Citizen, Saved> Paused = new Dictionary<Citizen, Saved>();
         private static readonly Dictionary<ushort, GameObject> Copies = new Dictionary<ushort, GameObject>();
         private static float _nextSend, _lastIncoming;
-        private static Dictionary<string, Sprite> _spriteCache;
-        private static float _nextCacheRefresh;
 
         public static void Apply(Harmony harmony)
         {
@@ -277,20 +275,6 @@ namespace Coop.Plugin.Shared
             }
         }
 
-        private static Sprite Resolve(string key)
-        {
-            if (key == null) return null;
-            if (_spriteCache == null || (!_spriteCache.ContainsKey(key) && Time.realtimeSinceStartup >= _nextCacheRefresh))
-            {
-                _nextCacheRefresh = Time.realtimeSinceStartup + 2f;
-                _spriteCache = new Dictionary<string, Sprite>();
-                foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>())
-                {
-                    var k = LocalPlayerSampler.KeyOf(sp);
-                    if (k != null && !_spriteCache.ContainsKey(k)) _spriteCache[k] = sp;
-                }
-            }
-            return _spriteCache.TryGetValue(key, out var sprite) ? sprite : null;
-        }
+        private static Sprite Resolve(string key) => Sync.SpriteLookup.Get(key);
     }
 }

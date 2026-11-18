@@ -40,7 +40,7 @@ namespace Coop.Plugin.Dungeon
                 if (type != MessageType.RoomObject) return;
                 var m = (RoomObject)msg;
                 int scene = GameInfo.CurrentSceneId();
-                LateApply.Run("room object " + m.Kind, () => GameInfo.CurrentSceneId() != scene || TryApply(m));
+                LateApply.Run("room object " + m.Kind, () => GameInfo.CurrentSceneId() != scene || TryApply(m), LateApply.UntilEntered);
             };
             session.StateChanged += st => { if (st == SessionState.Closed) LastPool.Clear(); };
         }
@@ -136,6 +136,8 @@ namespace Coop.Plugin.Dungeon
                 finally { _remote = false; }
                 return true;
             }
+            // Shrines and waves wake up with their room: apply once we're in it.
+            if ((m.Kind == RoomObject.Shrine || m.Kind == RoomObject.WaveStart || m.Kind == RoomObject.WaveDone) && !LateApply.IsCurrent(room)) return false;
             if (m.Kind == RoomObject.WaveStart || m.Kind == RoomObject.WaveDone) return WaveSync.Apply(room, m);
             if (m.Kind == RoomObject.Pool)
             {

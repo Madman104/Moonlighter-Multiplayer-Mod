@@ -12,6 +12,9 @@ namespace Coop.Plugin.Dungeon
     /// Enemy projectiles exist only in the game that runs the enemy. That game sends where its
     /// projectiles are and what they look like 10 times a second; the other games draw sprite
     /// copies. Hits are decided by the runner (EnemyHitGuard + PartnerHitbox).
+    /// Projectiles register themselves when they wake up (Awake/Start/OnEnable patched), so
+    /// nothing searches the scene each tick; the few types with none of those are looked up
+    /// once a second.
     /// </summary>
     internal static class ProjectileMirror
     {
@@ -21,6 +24,43 @@ namespace Coop.Plugin.Dungeon
         private sealed class Seen { public EntityState State; public float At; public int Key; }
 
         private static readonly List<Type> Types = new List<Type>();
+        private static readonly List<Type> Unhooked = new List<Type>();
+        private static readonly HashSet<MonoBehaviour> Live = new HashSet<MonoBehaviour>();
+        private static float _nextSlowScan;
+
+        public static void Apply(HarmonyLib.Harmony harmony)
+        {
+            FindTypes();
+            var post = new HarmonyLib.HarmonyMethod(typeof(ProjectileMirror), nameof(WokePostfix));
+            int hooked = 0;
+            foreach (var t in Types)
+            {
+                bool any = false;
+                foreach (var name in new[] { "Awake", "Start", "OnEnable" })
+                {
+                    var m = t.GetMethod(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly, null, Type.EmptyTypes, null);
+                    if (m == null) continue;
+                    try { harmony.Patch(m, postfix: post); any = true; }
+                    catch (Exception e) { CoopPlugin.Log.LogWarning($"Could not watch {t.Name}.{name}: {e.Message}"); }
+                }
+                if (any) hooked++; else Unhooked.Add(t);
+            }
+            CoopPlugin.Log.LogInfo($"Projectile mirror: {hooked} types register themselves, {Unhooked.Count} looked up");
+        }
+
+        private static void WokePostfix(MonoBehaviour __instance) { if (__instance != null) Live.Add(__instance); }
+
+        private static void FindTypes()
+        {
+            if (Types.Count > 0) return;
+            foreach (var t in HarmonyLib.AccessTools.GetTypesFromAssembly(typeof(EnemyBehaviour).Assembly))
+                if (t != null && typeof(MonoBehaviour).IsAssignableFrom(t) && !t.IsAbstract
+                    && (t.Name.Contains("Projectile") || t.Name.Contains("Proyectile"))
+                    && !t.Name.StartsWith("HeroMerchant", StringComparison.Ordinal) && !t.Name.Contains("Familiar")
+                    && !t.Name.StartsWith("TrickWeapon", StringComparison.Ordinal) && t != typeof(ProjectilePool))
+                    Types.Add(t);
+        }
         private static readonly Dictionary<int, ushort> IdOf = new Dictionary<int, ushort>();
         private static ushort _nextId = 1;
         private static readonly Dictionary<long, Seen> Incoming = new Dictionary<long, Seen>();
@@ -29,13 +69,7 @@ namespace Coop.Plugin.Dungeon
 
         public static void Attach(CoopLink session)
         {
-            if (Types.Count == 0)
-                foreach (var t in HarmonyLib.AccessTools.GetTypesFromAssembly(typeof(EnemyBehaviour).Assembly))
-                    if (t != null && typeof(MonoBehaviour).IsAssignableFrom(t) && !t.IsAbstract
-                        && (t.Name.Contains("Projectile") || t.Name.Contains("Proyectile"))
-                        && !t.Name.StartsWith("HeroMerchant", StringComparison.Ordinal) && !t.Name.Contains("Familiar")
-                        && !t.Name.StartsWith("TrickWeapon", StringComparison.Ordinal) && t != typeof(ProjectilePool))
-                        Types.Add(t);
+            FindTypes();
             Clear();
             session.GameMessageReceived += (type, msg) =>
             {
@@ -92,15 +126,20 @@ namespace Coop.Plugin.Dungeon
         private static void Send(CoopLink s, int key)
         {
             var list = new List<EntityState>();
-            foreach (var t in Types)
+            if (Unhooked.Count > 0 && Time.realtimeSinceStartup >= _nextSlowScan)
             {
-                UnityEngine.Object[] found;
-                try { found = UnityEngine.Object.FindObjectsOfType(t); }
-                catch { continue; }
-                foreach (var o in found)
+                _nextSlowScan = Time.realtimeSinceStartup + 1f;
+                foreach (var t in Unhooked)
                 {
-                    var c = o as MonoBehaviour;
-                    if (c == null || !c.isActiveAndEnabled || list.Count >= 60) continue;
+                    try { foreach (var o in UnityEngine.Object.FindObjectsOfType(t)) if (o is MonoBehaviour mb) Live.Add(mb); }
+                    catch { }
+                }
+            }
+            Live.RemoveWhere(c => c == null);
+            {
+                foreach (var c in Live)
+                {
+                    if (!c.isActiveAndEnabled || list.Count >= 60) continue;
                     int iid = c.gameObject.GetInstanceID();
                     if (!IdOf.TryGetValue(iid, out var id))
                     {

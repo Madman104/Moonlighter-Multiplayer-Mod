@@ -37,6 +37,8 @@ namespace Coop.Core.Protocol
         public bool Visible;
         public bool FlipX;
         public short SortingOrder;
+        /// <summary>Unity sorting layer id (project-wide, same on every PC); 0 = default.</summary>
+        public int SortingLayerId;
         public float LocalX;
         public float LocalY;
     }
@@ -53,6 +55,9 @@ namespace Coop.Core.Protocol
         public float Hp;
         public float MaxHp;
         public bool Ghost;
+        /// <summary>EnemyOwnership.RoomKey of the dungeon room this player is in; NoRoom outside one.</summary>
+        public int RoomKey = NoRoom;
+        public const int NoRoom = int.MinValue;
     }
 
     /// <summary>Keep-alive. Also used as the body of Pong.</summary>

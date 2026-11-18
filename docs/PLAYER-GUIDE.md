@@ -28,7 +28,8 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 |---|---|
 | Town, shop, upgrades, quests, calendar and time of day; townspeople walk the same way on both screens | Your bag, equipment and weapons |
 | Gold: one purse, and either player's purchase spends it | Your health |
-| Dungeon floors and rooms: you're always in the same room | Your quest drops |
+| Dungeon floors: same layout for everyone; going to the next floor or home takes everyone | Which room you're in: explore the floor on your own or together |
+| | Your quest drops |
 | Loot on the floor: one copy for everyone, whoever picks it up first gets it | |
 | Dungeon chests, including boss reward chests (one player at a time), and pots/crates: break or empty them once for everyone | |
 | Shrines and healing pools: used by one player = used for everyone | |
@@ -44,14 +45,13 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
   - Customers come into the host's game; the guest sees them and can sell to them.
 - **Emblem portal:** the host's portal is the shared one. The guest's portal asks the host to go through theirs.
 
-Every other player's name (their Steam name) shows above their Will. Its colour shows their health: green when full, yellow at half, red when low, grey for a ghost.
+Every other player's name (their Steam name) shows above their Will. Its colour shows their health: green when full, yellow at half, red when low.
 
-## Dying, ghosts and revives
-- **Dying while anyone else is alive** turns you into a **ghost**. A ghost:
-  - drops their bag (except safe slots) where they fell;
-  - can't be hurt, attack, pick up items or drink potions.
-- **To revive:** a living player uses a **healing pool**. Every ghost comes back at half health, and that pool is used up for everyone. Walk back to your items and pick them up.
-- **If nobody is left alive,** it's a normal death with the normal penalty.
+**Rooms:** each player can go anywhere on the floor. What happened in a room you weren't in (enemies killed, pots broken, chests emptied, shrines used) is there when you walk in. Loot from an enemy is rolled by the game of the player who fought it.
+
+## Dying and spectating
+- **Dying while anyone else is alive:** you **spectate**. Your Will disappears and your view follows a living player, room to room and floor to floor. Nothing is dropped.
+- **Your run ends** when the player you watch goes home, or when nobody is left alive. Then it's a normal death, with the same results screen and item loss as in solo play.
 
 ## Saves
 - The **host's** save is the shared world and is saved as usual.

@@ -12,8 +12,8 @@ namespace Coop.Plugin.Dungeon
     /// <summary>
     /// Items on dungeon floors are shared: one copy for everyone, and whoever picks it up first
     /// gets it.
-    /// - Enemy loot is rolled only by the host's game (enemy deaths happen on every game; the
-    ///   others skip the loot roll). Quest-target drops stay per player (quests are per player).
+    /// - Enemy loot is rolled only by the game that runs the enemy (deaths happen on every game;
+    ///   the others skip the loot roll). Quest-target drops stay per player (quests are per player).
     /// - Any other item that lands on a dungeon floor in someone's game (loot rolled by the host,
     ///   a broken pot, boss loot from the AI runner, an item dropped from a full bag) is sent
     ///   once it has landed; everyone else puts the same item at the same place.
@@ -95,15 +95,21 @@ namespace Coop.Plugin.Dungeon
 
         // ---- enemy loot only from the host ----
 
-        private static void DeathPrefix() => _enemyDeath++;
+        private static bool _skipLoot;
+
+        private static void DeathPrefix(Enemy __instance)
+        {
+            _enemyDeath++;
+            _skipLoot = EnemySync.NoLoot.Contains(__instance) || !EnemyMirror.RunsHere(__instance);
+        }
         private static Exception DeathFinalizer(Exception __exception) { if (_enemyDeath > 0) _enemyDeath--; return __exception; }
 
         private static bool LootPrefix(ref List<ItemStack> __result, out bool __state)
         {
             __state = false;
-            if (_enemyDeath > 0 && Sharing(out var s) && !s.IsHost)
+            if (_enemyDeath > 0 && _skipLoot && Sharing(out _))
             {
-                __result = new List<ItemStack>(); // the host's game rolls this enemy's loot
+                __result = new List<ItemStack>(); // the game running this enemy rolls its loot
                 return false;
             }
             __state = true;

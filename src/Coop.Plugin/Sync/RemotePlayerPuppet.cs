@@ -19,8 +19,6 @@ namespace Coop.Plugin.Sync
         private readonly SnapshotInterpolator _positions = new SnapshotInterpolator(0.1);
         private readonly SpriteNameMap _names = new SpriteNameMap();
         private readonly List<SpriteRenderer> _slots = new List<SpriteRenderer>();
-        private Dictionary<string, Sprite> _spriteCache;
-        private float _nextCacheRefresh;
         private PlayerState _latest;
         private bool _shown;
         private PartnerHitbox _hitbox;
@@ -71,7 +69,7 @@ namespace Coop.Plugin.Sync
 
         private void LateUpdate()
         {
-            bool show = _latest != null && Session != null
+            bool show = _latest != null && Session != null && !_latest.Ghost // dead players spectate, unseen
                 && PuppetVisibility.ShouldShow(GameInfo.CurrentSceneId(), _latest.SceneId, Session.State);
             if (_hitbox != null)
                 _hitbox.SetActive(show && !_latest.Ghost && _latest.SceneId >= 0 && Dungeon.SharedCultures.InSharedDungeon());
@@ -90,19 +88,31 @@ namespace Coop.Plugin.Sync
             var localRenderers = localWill != null ? LocalPlayerSampler.RenderersOf(localWill) : null;
 
             // Only visible layers are sent; any slot not in this update is hidden.
-            foreach (var slot in _slots) slot.enabled = false;
+            var sent = new bool[_slots.Count];
             foreach (var layer in _latest.Layers)
             {
                 var r = SlotRenderer(layer.Slot, localRenderers);
-                var sprite = layer.Visible ? Resolve(_names.GetKey(layer.SpriteId)) : null;
-                r.enabled = sprite != null;
-                if (sprite == null) continue;
+                if (layer.Slot < sent.Length) sent[layer.Slot] = true;
+                var key = layer.Visible ? _names.GetKey(layer.SpriteId) : null;
+                var sprite = key != null ? Resolve(key) : null;
+                if (sprite == null)
+                {
+                    // Not found here (yet): keep the last frame of this part rather than blink.
+                    if (key != null && _missing.Add(key) && _missing.Count <= 8) CoopPlugin.Log.LogInfo("Partner sprite not loaded here: " + key);
+                    r.enabled = layer.Visible && r.sprite != null;
+                    continue;
+                }
+                r.enabled = true;
+                if (layer.SortingLayerId != 0) r.sortingLayerID = layer.SortingLayerId;
                 r.sprite = sprite;
                 r.flipX = layer.FlipX;
                 r.sortingOrder = layer.SortingOrder;
                 r.transform.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
             }
+            for (int i = 0; i < sent.Length; i++) if (!sent[i]) _slots[i].enabled = false;
         }
+
+        private readonly HashSet<string> _missing = new HashSet<string>();
 
         private SpriteRenderer SlotRenderer(int slot, SpriteRenderer[] localRenderers)
         {
@@ -124,21 +134,7 @@ namespace Coop.Plugin.Sync
             return _slots[slot];
         }
 
-        private Sprite Resolve(string key)
-        {
-            if (key == null) return null;
-            if (_spriteCache == null || (!_spriteCache.ContainsKey(key) && Time.realtimeSinceStartup >= _nextCacheRefresh))
-            {
-                _nextCacheRefresh = Time.realtimeSinceStartup + SpriteCacheRefreshSeconds;
-                _spriteCache = new Dictionary<string, Sprite>();
-                foreach (var s in Resources.FindObjectsOfTypeAll<Sprite>())
-                {
-                    var k = LocalPlayerSampler.KeyOf(s);
-                    if (k != null && !_spriteCache.ContainsKey(k)) _spriteCache[k] = s;
-                }
-            }
-            return _spriteCache.TryGetValue(key, out var sprite) ? sprite : null;
-        }
+        private Sprite Resolve(string key) => SpriteLookup.Get(key);
 
         /// <summary>Highest a name may sit above the feet (world units = game pixels).</summary>
         private const float MaxHeadHeight = 34f;

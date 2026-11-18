@@ -25,7 +25,7 @@ namespace Coop.Plugin.Dungeon
     internal static class EnemyMirror
     {
         public const float OwnerInterval = 0.5f;
-        public const float StateInterval = 0.1f;
+        public const float StateInterval = 0.066f; // 15 a second: smoother enemies on the other screens
         public const ushort SpriteBase = 50000; // above Will's and the shop customers' ids
 
         private sealed class Remote
@@ -37,12 +37,13 @@ namespace Coop.Plugin.Dungeon
             public int Key;   // room it was sent for
         }
 
-        private sealed class Player { public Vector2 Pos; public bool Ghost; public float At; public int Scene; }
+        private sealed class Player { public Vector2 Pos; public bool Ghost; public float At; public int Scene; public int Room; }
 
         private static readonly SpriteIdAllocator Sprites = new SpriteIdAllocator(SpriteBase);
         // Each runner numbers their own sprites: one map per player.
         private static readonly Dictionary<int, SpriteNameMap> Names = new Dictionary<int, SpriteNameMap>();
-        private static readonly Dictionary<ushort, int> Owners = new Dictionary<ushort, int>();
+        /// <summary>Per room (RoomKey): who runs each enemy there. A room with no entry yet is run by whoever is in it.</summary>
+        private static readonly Dictionary<int, Dictionary<ushort, int>> OwnersByRoom = new Dictionary<int, Dictionary<ushort, int>>();
         private static readonly Dictionary<int, Player> Players = new Dictionary<int, Player>();
         private static readonly Dictionary<ushort, Remote> Incoming = new Dictionary<ushort, Remote>();
         private static readonly Dictionary<ushort, GameObject> Drawn = new Dictionary<ushort, GameObject>();
@@ -55,9 +56,12 @@ namespace Coop.Plugin.Dungeon
 
         private static readonly Dictionary<GameObject, SavedState> Paused = new Dictionary<GameObject, SavedState>();
         private static int _ownersKey = int.MinValue;
+        private static DungeonRoom _listedRoom;
+        private static CoopEnemyId[] _listed;
+        private static float _nextList;
+        private static readonly Dictionary<Transform, SpriteRenderer[]> DescribeCache = new Dictionary<Transform, SpriteRenderer[]>();
+        private static float _nextDescribeFlush;
         private static float _nextOwners, _nextState;
-        private static Dictionary<string, Sprite> _spriteCache;
-        private static float _nextCacheRefresh;
 
         public static void Attach(CoopLink session)
         {
@@ -72,6 +76,7 @@ namespace Coop.Plugin.Dungeon
                 p.Pos = new Vector2(st.X, st.Y);
                 p.Ghost = st.Ghost || st.SceneId < 0;
                 p.Scene = st.SceneId;
+                p.Room = st.RoomKey;
                 p.At = Time.realtimeSinceStartup;
             };
             session.PeerLeft += i => Players.Remove(i);
@@ -87,7 +92,7 @@ namespace Coop.Plugin.Dungeon
 
         private static void Reset()
         {
-            Owners.Clear();
+            OwnersByRoom.Clear();
             Incoming.Clear();
             foreach (var go in Drawn.Values) if (go != null) UnityEngine.Object.Destroy(go);
             Drawn.Clear();
@@ -114,9 +119,9 @@ namespace Coop.Plugin.Dungeon
             if (type == MessageType.EnemyOwners)
             {
                 var o = (EnemyOwners)msg;
-                _ownersKey = o.Key;
-                Owners.Clear();
-                for (int i = 0; i < o.Ids.Length && i < o.Owners.Length; i++) Owners[o.Ids[i]] = o.Owners[i];
+                var map = new Dictionary<ushort, int>();
+                for (int i = 0; i < o.Ids.Length && i < o.Owners.Length; i++) map[o.Ids[i]] = o.Owners[i];
+                OwnersByRoom[o.Key] = map;
             }
             else if (type == MessageType.EntityStates)
             {
@@ -144,8 +149,25 @@ namespace Coop.Plugin.Dungeon
 
         private static bool LocalRuns(CoopLink s, ushort id, int key)
         {
-            int owner = key == _ownersKey && Owners.TryGetValue(id, out var o) ? o : 0;
+            if (!OwnersByRoom.TryGetValue(key, out var map)) return true; // no decision for this room yet: we're here, so run it
+            int owner = map.TryGetValue(id, out var o) ? o : 0;
             return owner == s.LocalIndex;
+        }
+
+        /// <summary>
+        /// True when this game runs the enemy now: it is in our current room and we own it (or
+        /// nobody decided yet). Used for loot: only the running game rolls an enemy's loot.
+        /// </summary>
+        public static bool RunsHere(Enemy e)
+        {
+            if (e == null) return true;
+            var s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
+            if (s == null || s.State != SessionState.Connected) return true;
+            var dm = DungeonManager.Instance;
+            if (dm == null || e.enemyRoom == null || dm.currentDungeonRoom != e.enemyRoom) return false;
+            var tag = e.GetComponent<CoopEnemyId>();
+            if (tag == null || tag.Id < 0 || tag.Id > ushort.MaxValue) return true;
+            return LocalRuns(s, (ushort)tag.Id, KeyOf(e.enemyRoom));
         }
 
         /// <summary>Every frame (after the game's own Update), from CoopManager.</summary>
@@ -156,12 +178,19 @@ namespace Coop.Plugin.Dungeon
             if (room == null) { ClearDrawn(); ResumeAll(); return; }
             int key = KeyOf(room);
             float now = Time.realtimeSinceStartup;
-            var enemies = room.GetComponentsInChildren<CoopEnemyId>(false);
+            // Listing the room's enemies every frame was costly: refresh 4 times a second.
+            if (room != _listedRoom || now >= _nextList || _listed == null)
+            {
+                _listedRoom = room;
+                _nextList = now + 0.25f;
+                _listed = room.GetComponentsInChildren<CoopEnemyId>(false);
+            }
+            var enemies = _listed;
 
             if (s.IsHost && now >= _nextOwners)
             {
                 _nextOwners = now + OwnerInterval;
-                DecideOwners(s, key, enemies);
+                DecideAllRooms(s, key, enemies);
             }
 
             bool send = now >= _nextState;
@@ -194,14 +223,33 @@ namespace Coop.Plugin.Dungeon
             DrawMissing(key, present);
         }
 
-        private static void DecideOwners(CoopLink s, int key, CoopEnemyId[] enemies)
+        /// <summary>
+        /// Host: players can be in different rooms of the floor. For the host's room and every
+        /// room a guest is in, decide who runs each enemy (the nearest player in that room).
+        /// </summary>
+        private static void DecideAllRooms(CoopLink s, int hostKey, CoopEnemyId[] hostEnemies)
+        {
+            float now = Time.realtimeSinceStartup;
+            int scene = GameInfo.CurrentSceneId();
+            DecideOwners(s, hostKey, hostEnemies, true);
+            var done = new HashSet<int> { hostKey };
+            foreach (var kv in Players)
+            {
+                var p = kv.Value;
+                if (kv.Key <= 0 || p.Scene != scene || now - p.At > 1f || p.Room == PlayerState.NoRoom || !done.Add(p.Room)) continue;
+                var room = FloorItems.FindRoom(p.Room);
+                if (room == null) continue;
+                DecideOwners(s, p.Room, room.GetComponentsInChildren<CoopEnemyId>(true), false);
+            }
+        }
+
+        private static void DecideOwners(CoopLink s, int key, CoopEnemyId[] enemies, bool hostHere)
         {
             var will = HeroMerchant.Instance;
             if (will == null) return;
             Vector2 host = will.transform.position;
-            bool hostOut = Shared.GhostMode.LocalGhost;
-            if (key != _ownersKey) Owners.Clear();
-            _ownersKey = key;
+            bool hostOut = Shared.GhostMode.LocalGhost || !hostHere;
+            if (!OwnersByRoom.TryGetValue(key, out var Owners)) OwnersByRoom[key] = Owners = new Dictionary<ushort, int>();
             float now = Time.realtimeSinceStartup;
             int scene = GameInfo.CurrentSceneId();
             var ids = new List<ushort>();
@@ -210,13 +258,15 @@ namespace Coop.Plugin.Dungeon
             foreach (var tag in enemies)
             {
                 if (tag == null || tag.Id < 0 || tag.Id > ushort.MaxValue) continue;
+                var en = tag.GetComponent<Enemy>();
+                if (en != null && en.enemyStats != null && !en.enemyStats.isAlive) continue;
                 ushort id = (ushort)tag.Id;
                 Vector2 p = tag.transform.position;
                 for (int i = 0; i < dist.Length; i++) dist[i] = float.PositiveInfinity;
                 if (!hostOut) dist[0] = (p - host).sqrMagnitude;
                 // A ghost, a player in town/loading, or one we haven't heard from never runs enemies.
                 foreach (var kv in Players)
-                    if (kv.Key > 0 && kv.Key < dist.Length && !kv.Value.Ghost && kv.Value.Scene == scene && now - kv.Value.At < 1f)
+                    if (kv.Key > 0 && kv.Key < dist.Length && !kv.Value.Ghost && kv.Value.Scene == scene && kv.Value.Room == key && now - kv.Value.At < 1f)
                         dist[kv.Key] = (p - kv.Value.Pos).sqrMagnitude;
                 int current = Owners.TryGetValue(id, out var c) ? c : 0;
                 int owner = EnemyOwnership.Owner(current, dist, Mathf.Max(0f, CoopConfig.EnemyHandoffDistance.Value));
@@ -230,7 +280,10 @@ namespace Coop.Plugin.Dungeon
 
         internal static EntityState Describe(CoopLink s, Transform root, ushort id)
         {
-            var renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
+            float now = Time.realtimeSinceStartup;
+            if (now >= _nextDescribeFlush) { _nextDescribeFlush = now + 1f; DescribeCache.Clear(); } // parts change rarely
+            if (!DescribeCache.TryGetValue(root, out var renderers) || renderers == null)
+                DescribeCache[root] = renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
             var layers = new List<SpriteLayer>();
             for (int i = 0; i < renderers.Length && i < 255; i++)
             {
@@ -252,6 +305,7 @@ namespace Coop.Plugin.Dungeon
                     Visible = visible && sid != 0,
                     FlipX = r.flipX,
                     SortingOrder = (short)Mathf.Clamp(r.sortingOrder, short.MinValue, short.MaxValue),
+                    SortingLayerId = r.sortingLayerID,
                     LocalX = local.x,
                     LocalY = local.y,
                 });
@@ -407,6 +461,7 @@ namespace Coop.Plugin.Dungeon
                 r.sprite = sprite;
                 r.flipX = layer.FlipX;
                 r.sortingOrder = layer.SortingOrder;
+                if (layer.SortingLayerId != 0) r.sortingLayerID = layer.SortingLayerId;
                 child.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
             }
         }
@@ -419,20 +474,6 @@ namespace Coop.Plugin.Dungeon
             RendererCache.Clear();
         }
 
-        internal static Sprite Resolve(string key)
-        {
-            if (key == null) return null;
-            if (_spriteCache == null || (!_spriteCache.ContainsKey(key) && Time.realtimeSinceStartup >= _nextCacheRefresh))
-            {
-                _nextCacheRefresh = Time.realtimeSinceStartup + 2f;
-                _spriteCache = new Dictionary<string, Sprite>();
-                foreach (var sp in Resources.FindObjectsOfTypeAll<Sprite>())
-                {
-                    var k = LocalPlayerSampler.KeyOf(sp);
-                    if (k != null && !_spriteCache.ContainsKey(k)) _spriteCache[k] = sp;
-                }
-            }
-            return _spriteCache.TryGetValue(key, out var sprite) ? sprite : null;
-        }
+        internal static Sprite Resolve(string key) => Sync.SpriteLookup.Get(key);
     }
 }

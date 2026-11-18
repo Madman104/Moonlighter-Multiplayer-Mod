@@ -230,3 +230,12 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 3. Partner sounds come from their side of the screen (left/right).
 4. Host sleeps: the guest gets the bed bonus (shield/absorption) too.
 5. Guest presses LEAVE CO-OP: the toast says "Left co-op", and their bag, gear and discoveries are in their own save.
+
+## Weapons, blinking, own rooms, spectating, smoothness (mod 1.9.0)
+1. Attack with each weapon type: the partner's screen shows the weapon swing, in front of/behind Will as on your screen.
+2. Walk around for a few minutes: the partner's Will never blinks out. Log: any "Partner sprite not loaded here: ..." lines (send them).
+3. Go into different rooms of the same floor: no one is pulled along. Each fights their own room; walking into a room the other cleared shows it cleared, opened chests opened, broken pots broken.
+4. Both in one room again: enemies are shared as before.
+5. Taking the stairs or going home: everyone goes.
+6. Die while the partner lives: you vanish and watch them; nothing drops. When they go home you get the normal death results (bag lost like solo).
+7. Dungeon framerate is steady (no hitch every couple of seconds).

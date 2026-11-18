@@ -73,9 +73,16 @@ namespace Coop.Plugin.Dungeon
 
         private static void OnBroken(BreakableBroken msg)
         {
-            if (!Sharing(out _)) return;
+            int scene = GameInfo.CurrentSceneId();
+            LateApply.Run("breakable", () => GameInfo.CurrentSceneId() != scene || TryBreak(msg), LateApply.UntilEntered);
+        }
+
+        /// <summary>Broken in a room we're not in: done when we walk in (its objects are asleep until then).</summary>
+        private static bool TryBreak(BreakableBroken msg)
+        {
+            if (!Sharing(out _)) return false;
             var room = FloorItems.FindRoom(msg.RoomKey);
-            if (room == null) return;
+            if (room == null || !LateApply.IsCurrent(room)) return false;
             var at = room.transform.position + new Vector3(msg.X, msg.Y, 0f);
             BreakableObjectBehaviour best = null;
             float bestD = MatchDistance;
@@ -85,10 +92,11 @@ namespace Coop.Plugin.Dungeon
                 float d = Vector2.Distance(b.transform.position, at);
                 if (d < bestD) { bestD = d; best = b; }
             }
-            if (best == null) return; // already broken here
+            if (best == null) return true; // already broken here
             RemoteBroken.Add(best.enemy);
             try { EnemySync.SetHealth(best.enemy.enemyStats, 0f); }
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not break a shared breakable: " + e.Message); }
+            return true;
         }
     }
 }

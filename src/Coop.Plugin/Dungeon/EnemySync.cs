@@ -141,9 +141,49 @@ namespace Coop.Plugin.Dungeon
             else if (type == MessageType.EnemyHealth) ApplyHealth((EnemyHealth)msg);
         }
 
+        private static readonly Dictionary<long, float> PendingDamage = new Dictionary<long, float>();
+        /// <summary>Enemies whose death here must not roll loot again.</summary>
+        public static readonly HashSet<Enemy> NoLoot = new HashSet<Enemy>();
+        private static DungeonRoom _pendingCheckedRoom;
+        private static int _pendingScene = int.MinValue;
+
+        private static long PendingKey(int x, int y, bool secret, int id) => ((long)EnemyOwnership.RoomKey(x, y, secret) << 8) | (uint)(id & 0xFF);
+
+        /// <summary>Applies hits other players made in a room once this player walks into it.</summary>
+        private static void ApplyPendingDamage()
+        {
+            var dm = DungeonManager.Instance;
+            int scene = GameInfo.CurrentSceneId();
+            if (scene != _pendingScene) { _pendingScene = scene; PendingDamage.Clear(); NoLoot.Clear(); _pendingCheckedRoom = null; return; }
+            var room = dm != null ? dm.currentDungeonRoom : null;
+            if (room == null || room == _pendingCheckedRoom || PendingDamage.Count == 0 || FloorSync.ClientBuilding) { _pendingCheckedRoom = room; return; }
+            _pendingCheckedRoom = room;
+            int key = EnemyOwnership.RoomKey(room.x, room.y, room.isSecret);
+            var done = new List<long>();
+            foreach (var kv in PendingDamage)
+            {
+                if ((int)(kv.Key >> 8) != key) continue;
+                done.Add(kv.Key);
+                var stats = FindEnemy(room, (int)(kv.Key & 0xFF));
+                if (stats == null || !stats.isAlive) continue;
+                var enemy = stats.GetComponentInParent<Enemy>();
+                if (enemy != null) NoLoot.Add(enemy); // killed by someone else earlier: their game rolled the loot
+                SetHealth(stats, stats.CurrentHealth - kv.Value);
+            }
+            foreach (var k in done) PendingDamage.Remove(k);
+        }
+
         private static void ApplyDamage(EnemyDamage d)
         {
-            var stats = FindEnemy(FindRoom(d.X, d.Y, d.Secret), d.Index);
+            var room = FindRoom(d.X, d.Y, d.Secret);
+            if (room != null && !LateApply.IsCurrent(room))
+            {
+                long k = PendingKey(d.X, d.Y, d.Secret, d.Index);
+                PendingDamage.TryGetValue(k, out float sum);
+                PendingDamage[k] = sum + d.Delta;
+                return;
+            }
+            var stats = FindEnemy(room, d.Index);
             if (stats == null || !stats.isAlive) return;
             SetHealth(stats, stats.CurrentHealth - d.Delta);
         }
@@ -152,7 +192,7 @@ namespace Coop.Plugin.Dungeon
         {
             if (!Connected(out var s) || s.IsHost) return;
             var room = FindRoom(h.X, h.Y, h.Secret);
-            if (room == null) return;
+            if (room == null || !LateApply.IsCurrent(room)) return; // the host's room isn't ours
             for (int id = 0; id < h.Hp.Length; id++)
             {
                 if (h.Hp[id] < 0f) continue; // host has no enemy with this id
@@ -191,6 +231,7 @@ namespace Coop.Plugin.Dungeon
         /// <summary>Host: send the current room's enemy health (indexed by id) once a second.</summary>
         public static void Tick()
         {
+            if (Connected(out _) && InSharedDungeon()) ApplyPendingDamage();
             if (Time.realtimeSinceStartup < _nextBroadcast) return;
             _nextBroadcast = Time.realtimeSinceStartup + HealthBroadcastInterval;
             if (!Connected(out var s) || !s.IsHost || !InSharedDungeon()) return;

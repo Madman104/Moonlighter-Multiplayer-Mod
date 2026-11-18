@@ -222,6 +222,9 @@ namespace Coop.Plugin.Dungeon
             }
             if (type != MessageType.DungeonTravel && type != MessageType.TownTravel && type != MessageType.RoomChange) return;
             if (Shared.WorldSync.InTutorial) return; // caught up once the tutorial ends (CatchUp)
+            // Each player explores the floor on their own: room changes aren't followed (floors and
+            // going home still are). RoomChange is still sent, for the log and older versions.
+            if (type == MessageType.RoomChange) return;
             if (type == MessageType.RoomChange)
             {
                 // Floor still being built here: remember only the latest room, apply when ready.

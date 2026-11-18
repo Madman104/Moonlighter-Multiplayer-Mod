@@ -19,7 +19,7 @@ namespace Coop.Plugin.Sync
         private SpriteRenderer[] _renderers;
         private HeroMerchant _cachedWill;
         private int _cachedScene = int.MinValue;
-        private float _nextSend;
+        private float _nextSend, _nextRefresh;
         private uint _tick;
         private bool _loggedCount;
 
@@ -33,6 +33,13 @@ namespace Coop.Plugin.Sync
         public static SpriteRenderer[] RenderersOf(HeroMerchant will)
         {
             return will.GetComponentsInChildren<SpriteRenderer>(true);
+        }
+
+        private static int CurrentRoomKey()
+        {
+            if (!Dungeon.SharedCultures.InSharedDungeon()) return PlayerState.NoRoom;
+            var r = DungeonManager.Instance.currentDungeonRoom;
+            return r != null ? Coop.Core.Dungeon.EnemyOwnership.RoomKey(r.x, r.y, r.isSecret) : PlayerState.NoRoom;
         }
 
         public void Reset()
@@ -59,11 +66,12 @@ namespace Coop.Plugin.Sync
                 session.SendPlayerState(new PlayerState { Tick = ++_tick, SceneId = -1, Hp = -1f, Layers = new SpriteLayer[0] });
                 return;
             }
-            if (will != _cachedWill || scene != _cachedScene || _renderers == null)
+            if (will != _cachedWill || scene != _cachedScene || _renderers == null || now >= _nextRefresh)
             {
                 _cachedWill = will;
                 _cachedScene = scene;
                 _renderers = RenderersOf(will);
+                _nextRefresh = now + 0.5f; // weapons and effects are added and swapped while playing
             }
 
             var root = will.transform;
@@ -84,6 +92,7 @@ namespace Coop.Plugin.Sync
                     // The game may mirror Will with a negative scale instead of flipX.
                     layer.FlipX = r.flipX ^ (r.transform.lossyScale.x < 0);
                     layer.SortingOrder = (short)Mathf.Clamp(r.sortingOrder, short.MinValue, short.MaxValue);
+                    layer.SortingLayerId = r.sortingLayerID;
                     var local = r.transform.position - root.position;
                     layer.LocalX = local.x;
                     layer.LocalY = local.y;
@@ -104,6 +113,7 @@ namespace Coop.Plugin.Sync
                 Hp = hp,
                 MaxHp = maxHp,
                 Ghost = ghost,
+                RoomKey = CurrentRoomKey(),
             });
         }
     }

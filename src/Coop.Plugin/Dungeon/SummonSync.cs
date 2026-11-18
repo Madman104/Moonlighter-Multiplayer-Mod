@@ -43,7 +43,7 @@ namespace Coop.Plugin.Dungeon
                 {
                     var m = (SummonSpawned)msg;
                     int scene = GameInfo.CurrentSceneId();
-                    LateApply.Run("summon " + m.Name, () => GameInfo.CurrentSceneId() != scene || TrySpawn(m));
+                    LateApply.Run("summon " + m.Name, () => GameInfo.CurrentSceneId() != scene || TrySpawn(m), LateApply.UntilEntered);
                 }
                 else if (type == MessageType.SummonGone) OnGone((SummonGone)msg);
             };
@@ -80,7 +80,7 @@ namespace Coop.Plugin.Dungeon
         {
             if (!Sharing(out _)) return true;
             var room = FloorItems.FindRoom(m.RoomKey);
-            if (room == null) return false;
+            if (room == null || !LateApply.IsCurrent(room)) return false; // spawned when we walk in
             foreach (var t in room.GetComponentsInChildren<CoopEnemyId>(true))
                 if (t.Id == m.Id && t.GetComponent<Enemy>() != null && t.GetComponent<Enemy>().enemyStats != null
                     && t.GetComponent<Enemy>().enemyStats.isAlive) return true; // already have it
