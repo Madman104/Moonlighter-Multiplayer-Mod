@@ -123,6 +123,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.FloorSync.Attach(Session);
             Dungeon.TravelSync.Attach(Session);
             Dungeon.EnemySync.Attach(Session);
+            Dungeon.EnemyMirror.Attach(Session);
             Shared.GoldSync.Attach(Session);
             Shared.GhostMode.Attach(Session);
             Shared.DaySync.Attach(Session);
@@ -188,6 +189,7 @@ namespace Coop.Plugin.Runtime
             HandleAutoArgs();
             Menu.MainMenuCoop.Tick();
             Dungeon.EnemySync.Tick();
+            Dungeon.EnemyMirror.Tick();
             Shared.GoldSync.Tick();
             Shared.DaySync.Tick();
             Shared.WorldSync.Tick();

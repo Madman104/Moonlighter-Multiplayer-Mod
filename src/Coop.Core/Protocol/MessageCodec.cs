@@ -58,6 +58,7 @@ namespace Coop.Core.Protocol
                         var ents = es.Entities ?? new EntityState[0];
                         w.Write(es.Group);
                         w.Write(es.Extra);
+                        w.Write(es.Key);
                         w.Write((ushort)System.Math.Min(ents.Length, ushort.MaxValue));
                         for (int i = 0; i < System.Math.Min(ents.Length, ushort.MaxValue); i++)
                         {
@@ -69,6 +70,13 @@ namespace Coop.Core.Protocol
                             w.Write((byte)System.Math.Min(ls.Length, 255));
                             for (int j = 0; j < System.Math.Min(ls.Length, 255); j++) WriteLayer(w, ls[j]);
                         }
+                        break;
+                    case MessageType.EnemyOwners:
+                        var eo = (EnemyOwners)msg;
+                        var owned = eo.GuestOwned ?? new ushort[0];
+                        w.Write(eo.Key);
+                        w.Write((ushort)Math.Min(owned.Length, ushort.MaxValue));
+                        for (int i = 0; i < Math.Min(owned.Length, ushort.MaxValue); i++) w.Write(owned[i]);
                         break;
                     case MessageType.WorldSlot:
                     case MessageType.ShopState:
@@ -176,7 +184,7 @@ namespace Coop.Core.Protocol
                             return (type, null);
                         case MessageType.EntityStates:
                         {
-                            var es = new EntityStates { Group = rd.ReadByte(), Extra = rd.ReadByte() };
+                            var es = new EntityStates { Group = rd.ReadByte(), Extra = rd.ReadByte(), Key = rd.ReadInt32() };
                             es.Entities = new EntityState[rd.ReadUInt16()];
                             for (int i = 0; i < es.Entities.Length; i++)
                             {
@@ -186,6 +194,13 @@ namespace Coop.Core.Protocol
                                 es.Entities[i] = en;
                             }
                             return (type, es);
+                        }
+                        case MessageType.EnemyOwners:
+                        {
+                            var eo = new EnemyOwners { Key = rd.ReadInt32() };
+                            eo.GuestOwned = new ushort[rd.ReadUInt16()];
+                            for (int i = 0; i < eo.GuestOwned.Length; i++) eo.GuestOwned[i] = rd.ReadUInt16();
+                            return (type, eo);
                         }
                         case MessageType.WorldSlot:
                             return (type, new WorldSlot { Data = rd.ReadBytes(rd.ReadInt32()) });

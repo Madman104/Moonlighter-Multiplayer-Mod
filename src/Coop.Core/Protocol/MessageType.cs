@@ -28,5 +28,6 @@ namespace Coop.Core.Protocol
         CashSell = 24,
         EntityStates = 25,
         ShopOpen = 26,
+        EnemyOwners = 27,
     }
 }

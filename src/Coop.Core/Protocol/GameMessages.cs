@@ -161,10 +161,23 @@ namespace Coop.Core.Protocol
     public sealed class EntityStates
     {
         public const byte ShopVisitors = 1;
+        public const byte Enemies = 2;
 
         public byte Group;
+        /// <summary>Group-specific key. Enemies: EnemyOwnership.RoomKey of the room.</summary>
+        public int Key;
         /// <summary>Group-specific flag. Shop: 1 = a customer is waiting at the cash register.</summary>
         public byte Extra;
         public EntityState[] Entities = new EntityState[0];
+    }
+}
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Host → guest: in this room, which enemies the guest's game runs (all others: host's).</summary>
+    public sealed class EnemyOwners
+    {
+        public int Key;
+        public ushort[] GuestOwned = new ushort[0];
     }
 }

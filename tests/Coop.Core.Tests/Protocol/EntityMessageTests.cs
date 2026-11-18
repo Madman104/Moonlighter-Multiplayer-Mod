@@ -13,6 +13,7 @@ namespace Coop.Core.Tests.Protocol
             {
                 Group = EntityStates.ShopVisitors,
                 Extra = 1,
+                Key = -123456,
                 Entities = new[]
                 {
                     new EntityState
@@ -28,6 +29,7 @@ namespace Coop.Core.Tests.Protocol
             var e = Assert.IsType<EntityStates>(m);
             Assert.Equal(EntityStates.ShopVisitors, e.Group);
             Assert.Equal(1, e.Extra);
+            Assert.Equal(-123456, e.Key);
             Assert.Equal(2, e.Entities.Length);
             Assert.Equal(7, e.Entities[0].Id);
             Assert.Equal(-2f, e.Entities[0].Y);
@@ -36,6 +38,17 @@ namespace Coop.Core.Tests.Protocol
             Assert.True(l.FlipX);
             Assert.Equal(-3, l.SortingOrder);
             Assert.Empty(e.Entities[1].Layers);
+        }
+
+        [Fact]
+        public void EnemyOwners_round_trip()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.EnemyOwners,
+                new EnemyOwners { Key = 42, GuestOwned = new ushort[] { 1, 5, 300 } }));
+            Assert.Equal(MessageType.EnemyOwners, t);
+            var o = Assert.IsType<EnemyOwners>(m);
+            Assert.Equal(42, o.Key);
+            Assert.Equal(new ushort[] { 1, 5, 300 }, o.GuestOwned);
         }
 
         [Fact]
