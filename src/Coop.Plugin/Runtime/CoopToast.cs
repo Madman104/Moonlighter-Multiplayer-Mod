@@ -14,6 +14,18 @@ namespace Coop.Plugin.Runtime
         private string _last;
         private GUIStyle _style;
 
+        private static CoopToast _instance;
+
+        private void Awake() => _instance = this;
+
+        /// <summary>Shows a one-off notice at the top of the screen.</summary>
+        public static void Show(string text)
+        {
+            if (_instance == null) return;
+            _instance._text = text;
+            _instance._until = Time.unscaledTime + ShowSeconds;
+        }
+
         private void Update()
         {
             var status = CoopManager.Instance != null ? CoopManager.Instance.Status : null;

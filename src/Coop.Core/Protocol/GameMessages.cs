@@ -76,3 +76,13 @@ namespace Coop.Core.Protocol
         public int Value;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Host's time of day (the game's DayTime enum value). FromBed = the host just slept.</summary>
+    public sealed class DayTimeSync
+    {
+        public byte Value;
+        public bool FromBed;
+    }
+}

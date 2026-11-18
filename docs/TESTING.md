@@ -113,3 +113,16 @@ Needs a person:
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–5 | | | |
+
+## Stage 6a (shared day/night, host's bed)
+
+Automated (2026-11-18): `dotnet test` 119 pass; two connected test copies start with the TimeManagerV2 and Bed patches applied, no errors.
+
+Needs a person:
+1. **Same time of day.** After connecting, the test window's day/evening wheel matches the host's within 5 s.
+2. **Host sleeps.** Host uses the bed: the test window switches too and shows "Your partner slept: a new day begins".
+3. **Guest bed.** The test window's bed does nothing except show "Only the host's bed ends the day".
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–3 | | | |

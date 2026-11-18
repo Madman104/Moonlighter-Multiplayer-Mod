@@ -91,6 +91,11 @@ namespace Coop.Core.Protocol
                     case MessageType.GoldTotal:
                         w.Write(((GoldTotal)msg).Value);
                         break;
+                    case MessageType.DayTimeSync:
+                        var dts = (DayTimeSync)msg;
+                        w.Write(dts.Value);
+                        w.Write(dts.FromBed);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -163,6 +168,8 @@ namespace Coop.Core.Protocol
                             return (type, new GoldDelta { Delta = rd.ReadInt32() });
                         case MessageType.GoldTotal:
                             return (type, new GoldTotal { Value = rd.ReadInt32() });
+                        case MessageType.DayTimeSync:
+                            return (type, new DayTimeSync { Value = rd.ReadByte(), FromBed = rd.ReadBoolean() });
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
                     }

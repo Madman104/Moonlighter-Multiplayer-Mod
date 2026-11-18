@@ -125,6 +125,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.EnemySync.Attach(Session);
             Shared.GoldSync.Attach(Session);
             Shared.GhostMode.Attach(Session);
+            Shared.DaySync.Attach(Session);
             SessionStarted?.Invoke();
         }
 
@@ -184,6 +185,7 @@ namespace Coop.Plugin.Runtime
             HandleAutoArgs();
             Dungeon.EnemySync.Tick();
             Shared.GoldSync.Tick();
+            Shared.DaySync.Tick();
 
             if (_lingering != null || _lingerReason != null)
             {

@@ -19,5 +19,6 @@ namespace Coop.Core.Protocol
         GoldDelta = 15,
         GoldTotal = 16,
         Revive = 17,
+        DayTimeSync = 18,
     }
 }

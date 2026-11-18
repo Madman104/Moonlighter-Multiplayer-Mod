@@ -31,6 +31,7 @@ namespace Coop.Plugin
             Shared.GoldSync.Apply(_harmony);
             Shared.SaveGuard.Apply(_harmony);
             Shared.GhostMode.Apply(_harmony);
+            Shared.DaySync.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }
