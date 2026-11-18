@@ -1,11 +1,11 @@
-# Moonlighter Co-op — handoff (1.0.0, 2026-11-18)
+# Moonlighter Co-op — handoff (1.0.1, 2026-11-18)
 
 ## Where things are
 - **Repo:** this folder (git). Newest work is on **`feat/coop-own-bags`**, which is stacked on all the stage branches (`main` → `feat/coop-stage1` → … → `feat/coop-stage4b` → `feat/coop-own-bags`). See "Merge" below.
-- **Version:** mod 1.0.0. Older builds are refused by the handshake.
+- **Version:** mod 1.0.1 (1.0.0 + review fixes). Other versions are refused by the handshake.
 - **Build/test:** `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (137 tests pass).
   - `tools\deploy.ps1` copies the build into the game; the game must be closed.
-  - `tools\package.ps1` makes `dist\MoonlighterCoop-1.0.0.zip` (the plugin plus the player guide).
+  - `tools\package.ps1` makes `dist\MoonlighterCoop-1.0.1.zip` (the plugin plus the player guide).
 - **Players:** [docs/PLAYER-GUIDE.md](docs/PLAYER-GUIDE.md) covers install, hosting, joining, the rules and the limits.
 - **What to test:** [docs/TESTING.md](docs/TESTING.md). The 1.0 checklist is at the bottom.
 
