@@ -81,27 +81,19 @@ namespace Coop.Plugin.Shared
         private static void Ask(int seed)
         {
             _choice = Choice.Asking;
-            try
+            if (!Menu.MainMenuCoop.AskTutorial(play => Decide(seed, play ? Choice.Tutorial : Choice.Skip)))
             {
-                var prefab = Resources.Load<GameObject>("Dialogs/OptionsDialog");
-                var dialog = UnityEngine.Object.Instantiate(prefab).GetComponent<OptionsDialog>();
-                dialog.ShowDialog("First time in this world. Play the tutorial? (Skip gives you a starter sword.)",
-                    "Play the tutorial", "Skip");
-                dialog.Init(() => Decide(seed, Choice.Tutorial, dialog), () => Decide(seed, Choice.Skip, dialog));
+                CoopPlugin.Log.LogWarning("Could not ask about the tutorial; skipping it");
+                Decide(seed, Choice.Skip);
             }
-            catch (Exception e)
-            {
-                CoopPlugin.Log.LogWarning("Could not show the tutorial question (" + e.Message + "); skipping it");
-                Decide(seed, Choice.Skip, null);
-            }
+            else CoopToast.Show("First time in this world: play the tutorial?");
         }
 
-        private static void Decide(int seed, Choice c, OptionsDialog dialog)
+        private static void Decide(int seed, Choice c)
         {
             _choice = c;
             _skipQuiet = false;
             RememberWorld(seed);
-            if (dialog != null) UnityEngine.Object.Destroy(dialog.gameObject, 1f);
             CoopPlugin.Log.LogInfo(c == Choice.Tutorial ? "Co-op: playing the tutorial first" : "Co-op: skipping the tutorial");
         }
 
@@ -278,7 +270,7 @@ namespace Coop.Plugin.Shared
             {
                 // Without a copy of their own save the guest would play with an empty bag and
                 // could keep nothing: don't join.
-                CoopToast.Show("Can't join: load your own save first, then join from the pause menu");
+                CoopToast.Show("Can't join: no free save slot for you (the game has 5)");
                 CoopPlugin.Log.LogWarning("Co-op: no copy of your own save; leaving instead of joining with an empty bag");
                 CoopManager.Instance?.Leave();
                 return false;

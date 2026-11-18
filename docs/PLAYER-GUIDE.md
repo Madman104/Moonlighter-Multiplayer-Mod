@@ -16,7 +16,8 @@ and play in the host's world.
 **Friend (guest)**
 - Accept the invite from Steam: the notification, the overlay (Shift+Tab, or the Guide button on a pad), or **Join co-op** on the main menu, which opens the friends list.
 - Your game loads the **host's world**. If you were already playing, it goes to the main menu first; press any key there if asked.
-- **First time in a host's world**, you're asked: **Play the tutorial** (the game's own intro, then you arrive in the host's town) or **Skip** (you get a Training Sword if you have no weapon). You won't be asked again for that world.
+- **First time in a host's world**, the main menu asks: **Play the tutorial** (the game's own intro, then you arrive in the host's town) or **Skip the tutorial** (you get a Training Sword if you have no weapon). You won't be asked again for that world.
+- **No save yet?** That's fine: joining makes a new save for you, which keeps your bag and gear from co-op.
 
 **Without Steam (IP):** the host uses pause → CO-OP → **HOST (IP)** and forwards TCP port 27460. The guest copies the host's address, then uses pause → CO-OP → **PASTE IP** and **JOIN**. **Join co-op** on the main menu joins the last address you used.
 

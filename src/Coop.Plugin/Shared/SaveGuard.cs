@@ -44,7 +44,9 @@ namespace Coop.Plugin.Shared
             _guestStateLoaded = true;
             if (_ownSlotJson != null) return; // still the copy from before an earlier co-op session
             var gm = GameManager.Instance;
-            if (gm == null || gm.currentGameSlot == null) return;
+            if (gm == null) return;
+            if (gm.currentGameSlot == null || !gm.currentGameSlot.IsValid) MakeFreshSlot(gm);
+            if (gm.currentGameSlot == null) return;
             try
             {
                 FsJSONManager.Serialize(gm.currentGameSlot, out fsData data);
@@ -61,6 +63,33 @@ namespace Coop.Plugin.Shared
                 _ownSlotJson = null;
                 CoopPlugin.Log.LogWarning("Co-op: could not copy your save (" + e.Message + "); it won't be written while playing as a guest");
             }
+        }
+
+        /// <summary>
+        /// A player with no save joins: give them a new save slot, set up the way the game sets
+        /// up a new game (starting gold, items, shop), so their bag and gear from co-op are kept.
+        /// The tutorial counts as done; whether to play it is asked when joining a world.
+        /// </summary>
+        private static void MakeFreshSlot(GameManager gm)
+        {
+            var slots = gm.gameSaveData != null ? gm.gameSaveData.gameSlots : null;
+            if (slots == null) return;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] != null && slots[i].IsValid) continue;
+                try
+                {
+                    gm.ResetSlot(i);
+                    var slot = slots[i];
+                    slot.gameType = GameSlot.GameType.Normal;
+                    slot.playedTutorial = 4;
+                    gm.currentGameSlot = slot;
+                    CoopPlugin.Log.LogInfo($"Co-op: you have no save yet; made a new one in slot {i + 1}");
+                }
+                catch (Exception e) { CoopPlugin.Log.LogWarning("Could not make a save for you: " + e.Message); }
+                return;
+            }
+            CoopPlugin.Log.LogWarning("Co-op: no free save slot");
         }
 
         private static GameSlot ReadOwnSlot()

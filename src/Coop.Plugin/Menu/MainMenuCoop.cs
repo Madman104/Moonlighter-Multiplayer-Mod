@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Coop.Plugin.Runtime;
 using Coop.Plugin.Steam;
 using Coop.Plugin.TestMode;
@@ -47,13 +48,14 @@ namespace Coop.Plugin.Menu
                 var cont = panel.mainMenuButtons[0];
                 _button = CloneEntry(cont, "CoopHostContinue", 1, () =>
                 {
+                    if (AnswerTutorial(true)) return;
                     _hostPending = true;
                     _readySince = -1f;
                     _clickedAt = Time.realtimeSinceStartup;
                     CoopPlugin.Log.LogInfo("Co-op: loading your save to host");
                     panel.StartGame();
                 });
-                _join = CloneEntry(cont, "CoopJoin", 2, JoinNow);
+                _join = CloneEntry(cont, "CoopJoin", 2, () => { if (!AnswerTutorial(false)) JoinNow(); });
                 SetLabel(_button, cont, Label);
                 SetLabel(_join, cont, JoinLabel);
                 MakeRoom(panel, cont, 2);
@@ -83,6 +85,59 @@ namespace Coop.Plugin.Menu
                 catch (Exception e) { CoopPlugin.Log.LogError("Co-op main menu action failed: " + e); }
             });
             return go;
+        }
+
+        // ---- tutorial question (first visit to a host's world) ----
+
+        private static Action<bool> _tutorialAnswer;
+        private static readonly List<KeyValuePair<GameObject, bool>> HiddenEntries = new List<KeyValuePair<GameObject, bool>>();
+
+        /// <summary>
+        /// Turns the menu into a two-entry question: "Play the tutorial" / "Skip the tutorial".
+        /// The other entries are hidden until it's answered. Returns false if the menu isn't there.
+        /// </summary>
+        public static bool AskTutorial(Action<bool> answer)
+        {
+            var panel = UnityEngine.Object.FindObjectOfType<MainMenuPanel>();
+            if (panel == null || _button == null || _join == null) return false;
+            _tutorialAnswer = answer;
+            HiddenEntries.Clear();
+            foreach (var go in panel.mainMenuButtons)
+            {
+                if (go == null || go == _button || go == _join) continue;
+                HiddenEntries.Add(new KeyValuePair<GameObject, bool>(go, go.activeSelf));
+                go.SetActive(false);
+            }
+            var cont = panel.mainMenuButtons[0];
+            _button.SetActive(true);
+            _join.SetActive(true);
+            var h = _button.GetComponent<Button>();
+            var j = _join.GetComponent<Button>();
+            h.interactable = j.interactable = true;
+            SetLabel(_button, cont, "Play the tutorial");
+            SetLabel(_join, cont, "Skip the tutorial");
+            h.navigation = Nav(j, j);
+            j.navigation = Nav(h, h);
+            h.Select();
+            return true;
+        }
+
+        private static bool AnswerTutorial(bool play)
+        {
+            if (_tutorialAnswer == null) return false;
+            var answer = _tutorialAnswer;
+            _tutorialAnswer = null;
+            foreach (var kv in HiddenEntries) if (kv.Key != null) kv.Key.SetActive(kv.Value);
+            HiddenEntries.Clear();
+            var panel = UnityEngine.Object.FindObjectOfType<MainMenuPanel>();
+            if (panel != null)
+            {
+                LinkNavigation(panel, panel.mainMenuButtons[0]);
+                MirrorContinue(panel);
+            }
+            try { answer(play); }
+            catch (Exception e) { CoopPlugin.Log.LogError("Tutorial answer failed: " + e); }
+            return true;
         }
 
         // Join: Steam players accept the host's invite (the overlay opens on the friends list,

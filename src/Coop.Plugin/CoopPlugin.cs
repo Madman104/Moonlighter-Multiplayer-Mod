@@ -9,7 +9,7 @@ namespace Coop.Plugin
     public class CoopPlugin : BaseUnityPlugin
     {
         public const string Guid = "com.coop.moonlighter";
-        public const string ModVersion = "1.1.2";
+        public const string ModVersion = "1.1.3";
 
         internal static ManualLogSource Log;
 
