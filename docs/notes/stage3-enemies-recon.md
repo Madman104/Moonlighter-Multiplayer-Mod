@@ -21,3 +21,12 @@ Findings from the decompiled game code (`DungeonRoom.cs`, `Enemy.cs`, `EnemyStat
 3. Enemy attacks hurt whichever Will they touch, on each player's own game. Each player owns their own health (design: separate health bars).
 4. Room clear and door opening follow the host: the host sends `RoomCleared(x,y)`.
 5. Open question to check first: enemy projectiles (many classes under `*Behaviour`). They spawn from AI, so on the client they'll come from mirrored animation events or not at all. Probably drive them from host "attack started" events.
+
+## Stage 3a plan (built 2026-11-18, unattended)
+Decision (to check): **shared health, local AI.** Each game keeps running its own enemy AI against its own Will (so each player is attacked and dodges locally with no lag). Enemy *health and death* are shared:
+- Any health decrease on either game (`EnemyStats.CurrentHealth` setter) is sent as `EnemyDamage{room x,y,secret, enemy index, delta}`; the other game subtracts it.
+- Every 1 s the host sends `EnemyHealth{room, hp[]}` for its current room; the client corrects drift.
+- Champion picks are made deterministic: `SpawnEnemies` runs with `Random` seeded from `RoomSeed(culture, floor, x, y, secret)`, then the global random state is restored.
+- Co-op enemies get 2x max health (`EnemyStats.Init` postfix).
+- Only the host drops loot (`Enemy.DropItemsOnDeath` skipped on the client) until stage 4 shares items.
+Trade-off: enemy *positions* differ between screens (each chases its own player). Stage 3b would make the host drive positions.
