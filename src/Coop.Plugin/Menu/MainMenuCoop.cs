@@ -22,6 +22,7 @@ namespace Coop.Plugin.Menu
         private static GameObject _button;
         private static bool _hostPending;
         private static float _readySince = -1f;
+        private static float _clickedAt;
 
         public static void Apply(Harmony harmony)
         {
@@ -48,6 +49,7 @@ namespace Coop.Plugin.Menu
                 {
                     _hostPending = true;
                     _readySince = -1f;
+                    _clickedAt = Time.realtimeSinceStartup;
                     CoopPlugin.Log.LogInfo("Co-op: loading your save to host");
                     panel.StartGame();
                 });
@@ -199,6 +201,9 @@ namespace Coop.Plugin.Menu
             if (!_hostPending) return;
             var gm = GameManager.Instance;
             bool ready = gm != null && gm.IsTownSceneLoaded() && HeroMerchant.Instance != null;
+            // Still on the main menu long after the click: the load didn't start, forget it.
+            if (!ready && HeroMerchant.Instance == null && UnityEngine.Object.FindObjectOfType<MainMenuPanel>() != null
+                && Time.realtimeSinceStartup - _clickedAt > 20f) { _hostPending = false; return; }
             if (!ready) { _readySince = -1f; return; }
             if (_readySince < 0f) { _readySince = Time.realtimeSinceStartup; return; }
             if (Time.realtimeSinceStartup - _readySince < HostDelay) return;

@@ -90,6 +90,7 @@ namespace Coop.Plugin.Shared
         {
             public int Index;
             public GameSlot Live;
+            public GameSlot Own;
         }
 
         private static bool SerializePrefix(GameManager __instance, out Swap __state)
@@ -126,7 +127,7 @@ namespace Coop.Plugin.Shared
             own.equippedWeaponSet = live.equippedWeaponSet;
             slots[index] = own;
             __instance.currentGameSlot = own; // SerializeGameSlot stamps the current slot
-            __state = new Swap { Index = index, Live = live };
+            __state = new Swap { Index = index, Live = live, Own = own };
             try
             {
                 FsJSONManager.Serialize(own, out fsData data);
@@ -136,12 +137,14 @@ namespace Coop.Plugin.Shared
             return true;
         }
 
-        // Always put the live co-op slot back, even if writing failed.
+        // Put the live co-op slot back as the game's current slot, even if writing failed. The
+        // slot list keeps this player's own copy (what is on disk): the live slot may be the
+        // host's world, and anything in the list is written by every later save.
         private static Exception SerializeFinalizer(GameManager __instance, Swap __state, Exception __exception)
         {
             if (__state.Index >= 0 && __state.Live != null)
             {
-                __instance.gameSaveData.gameSlots[__state.Index] = __state.Live;
+                __instance.gameSaveData.gameSlots[__state.Index] = __state.Own;
                 __instance.currentGameSlot = __state.Live;
             }
             return __exception;

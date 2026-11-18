@@ -40,7 +40,14 @@ namespace Coop.Plugin.Dungeon
         private static readonly HashSet<ushort> GuestOwned = new HashSet<ushort>();
         private static readonly Dictionary<ushort, Remote> Incoming = new Dictionary<ushort, Remote>();
         private static readonly Dictionary<ushort, GameObject> Drawn = new Dictionary<ushort, GameObject>();
-        private static readonly Dictionary<GameObject, bool> Paused = new Dictionary<GameObject, bool>();
+        /// <summary>What a paused enemy had before pausing, restored exactly on resume.</summary>
+        private sealed class SavedState
+        {
+            public readonly List<KeyValuePair<Behaviour, bool>> Enabled = new List<KeyValuePair<Behaviour, bool>>();
+            public readonly List<KeyValuePair<Rigidbody2D, bool>> Kinematic = new List<KeyValuePair<Rigidbody2D, bool>>();
+        }
+
+        private static readonly Dictionary<GameObject, SavedState> Paused = new Dictionary<GameObject, SavedState>();
         private static int _ownersKey = int.MinValue, _incomingKey = int.MinValue;
         private static float _nextOwners, _nextState;
         private static Vector2 _partnerPos;
@@ -72,8 +79,7 @@ namespace Coop.Plugin.Dungeon
             Incoming.Clear();
             foreach (var go in Drawn.Values) if (go != null) UnityEngine.Object.Destroy(go);
             Drawn.Clear();
-            foreach (var kv in Paused) if (kv.Key != null) SetPaused(kv.Key, false);
-            Paused.Clear();
+            ResumeAll();
             _ownersKey = _incomingKey = int.MinValue;
         }
 
@@ -132,7 +138,7 @@ namespace Coop.Plugin.Dungeon
         {
             if (!Connected(out var s)) return;
             var room = CurrentRoom();
-            if (room == null) { ClearDrawn(); return; }
+            if (room == null) { ClearDrawn(); ResumeAll(); return; }
             int key = KeyOf(room);
             float now = Time.realtimeSinceStartup;
             var enemies = room.GetComponentsInChildren<CoopEnemyId>(false);
@@ -258,22 +264,59 @@ namespace Coop.Plugin.Dungeon
         /// <summary>Pauses an enemy's AI, path-finding, animation and physics (or resumes it).</summary>
         private static void SetPaused(GameObject go, bool paused)
         {
-            Paused.TryGetValue(go, out bool was);
+            bool was = Paused.ContainsKey(go);
             if (was == paused) return;
-            Paused[go] = paused;
             try
             {
-                foreach (var b in go.GetComponentsInChildren<EnemyBehaviour>(true)) b.enabled = !paused;
-                foreach (var a in go.GetComponentsInChildren<Animator>(true)) a.enabled = !paused;
-                foreach (var c in go.GetComponentsInChildren<MonoBehaviour>(true))
-                    if (c != null && c.GetType().Name.StartsWith("PolyNav", StringComparison.Ordinal)) c.enabled = !paused;
-                foreach (var rb in go.GetComponentsInChildren<Rigidbody2D>(true))
+                if (paused)
                 {
-                    if (paused) rb.velocity = Vector2.zero;
-                    rb.isKinematic = paused;
+                    var saved = new SavedState();
+                    foreach (var b in go.GetComponentsInChildren<EnemyBehaviour>(true)) Pause(saved, b);
+                    foreach (var a in go.GetComponentsInChildren<Animator>(true)) Pause(saved, a);
+                    foreach (var c in go.GetComponentsInChildren<MonoBehaviour>(true))
+                        if (c != null && c.GetType().Name.StartsWith("PolyNav", StringComparison.Ordinal)) Pause(saved, c);
+                    foreach (var rb in go.GetComponentsInChildren<Rigidbody2D>(true))
+                    {
+                        saved.Kinematic.Add(new KeyValuePair<Rigidbody2D, bool>(rb, rb.isKinematic));
+                        rb.velocity = Vector2.zero;
+                        rb.isKinematic = true;
+                    }
+                    Paused[go] = saved;
+                }
+                else
+                {
+                    Restore(Paused[go]);
+                    Paused.Remove(go);
                 }
             }
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not pause/resume an enemy: " + e.Message); }
+        }
+
+        private static void Pause(SavedState saved, Behaviour b)
+        {
+            if (b == null) return;
+            saved.Enabled.Add(new KeyValuePair<Behaviour, bool>(b, b.enabled));
+            b.enabled = false;
+        }
+
+        private static void Restore(SavedState saved)
+        {
+            foreach (var kv in saved.Enabled) if (kv.Key != null) kv.Key.enabled = kv.Value;
+            foreach (var kv in saved.Kinematic) if (kv.Key != null) kv.Key.isKinematic = kv.Value;
+        }
+
+        /// <summary>Resumes every paused enemy and forgets destroyed ones.</summary>
+        private static void ResumeAll()
+        {
+            if (Paused.Count == 0) return;
+            foreach (var kv in Paused)
+                if (kv.Key != null)
+                {
+                    try { Restore(kv.Value); }
+                    catch (Exception e) { CoopPlugin.Log.LogWarning("Could not resume an enemy: " + e.Message); }
+                }
+            Paused.Clear();
+            RendererCache.Clear();
         }
 
         // ---- enemies only the runner has (summons): sprite-only copies ----

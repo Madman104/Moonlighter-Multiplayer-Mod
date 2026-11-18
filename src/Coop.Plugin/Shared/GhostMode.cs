@@ -113,6 +113,28 @@ namespace Coop.Plugin.Shared
         }
 
         private static bool _dropPending;
+        private static readonly System.Collections.Generic.List<ItemStack> Pile = new System.Collections.Generic.List<ItemStack>();
+
+        /// <summary>
+        /// The session ended before the dropped bag was picked up: put what is still lying on
+        /// the floor back into the bag, so leaving co-op doesn't lose it. (A real death or going
+        /// home leaves the pile behind, as the game does.)
+        /// </summary>
+        public static void ReclaimPile()
+        {
+            var hm = HeroMerchant.Instance;
+            if (hm == null) { Pile.Clear(); return; }
+            var inv = hm.heroMerchantInventory;
+            int back = 0;
+            foreach (var item in Pile)
+            {
+                if (item == null || inv.HasItemInBag(item.gameObject) || inv.HasItemEquipped(item.gameObject)) continue;
+                try { if (inv.TryAddItem(item)) back++; }
+                catch (Exception e) { CoopPlugin.Log.LogWarning("Could not put a dropped item back: " + e.Message); }
+            }
+            Pile.Clear();
+            if (back > 0) CoopPlugin.Log.LogInfo($"Co-op: put {back} dropped item(s) back in your bag");
+        }
 
         /// <summary>
         /// Drops every bag item that isn't in a safe slot at Will's feet, the way the game drops
@@ -134,6 +156,7 @@ namespace Coop.Plugin.Shared
                 if (slot == null || slot.item == null || slot.isSafe) continue;
                 var item = slot.item;
                 inv.SetItem(null, i);
+                Pile.Add(item);
                 if (room != null) room.AddDropItems(new System.Collections.Generic.List<ItemStack> { item });
                 item.Drop(at, 30f, parent);
                 dropped++;

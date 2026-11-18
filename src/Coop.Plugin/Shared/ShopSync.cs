@@ -11,12 +11,16 @@ using UnityEngine;
 
 namespace Coop.Plugin.Shared
 {
-    /// <summary>The shop's showcases (with prices) and storage chests, as sent between the games.</summary>
+    /// <summary>
+    /// Shop slots that changed, as sent between the games. Keys: "s{i}" = showcase i,
+    /// "c{c}:{i}" = storage chest c, slot i. Request = "send me every slot" (guest just joined).
+    /// </summary>
     [Serializable]
     public class ShopSnapshot
     {
-        public List<ItemSaveInfo> showcases = new List<ItemSaveInfo>();
-        public List<ChestSaveInfo> chests = new List<ChestSaveInfo>();
+        public bool request;
+        public List<string> keys = new List<string>();
+        public List<ItemSaveInfo> items = new List<ItemSaveInfo>();
     }
 
     /// <summary>
@@ -33,8 +37,12 @@ namespace Coop.Plugin.Shared
         public const ushort VisitorSpriteBase = 40000; // Will's sprite ids stay below this
 
         private static bool _applyingRemote;
-        private static string _last;
-        private static ShopSnapshot _pendingRemote;
+        // Last state both games agreed on, per slot (signature). A slot that differs from it
+        // here was changed here and not sent yet.
+        private static readonly Dictionary<string, string> Base = new Dictionary<string, string>();
+        private static readonly Dictionary<string, ItemSaveInfo> PendingRemote = new Dictionary<string, ItemSaveInfo>();
+        private static bool _baseReady, _resendAll;
+        private static float _lastVisitorsAt;
         private static float _nextState, _nextVisitors;
         private static bool _hostCashWaiting;
 
@@ -57,8 +65,10 @@ namespace Coop.Plugin.Shared
 
         public static void Attach(PeerSession session)
         {
-            _last = null;
-            _pendingRemote = null;
+            Base.Clear();
+            PendingRemote.Clear();
+            _baseReady = false;
+            _resendAll = false;
             _hostCashWaiting = false;
             VisitorSprites.Reset();
             VisitorIds.Clear();
@@ -130,7 +140,10 @@ namespace Coop.Plugin.Shared
                     {
                         ShopSnapshot snap = null;
                         FsJSONManager.Deserialize(PackedText.Unpack(((ShopState)msg).Data), ref snap, false);
-                        if (snap != null) _pendingRemote = snap;
+                        if (snap == null) break;
+                        if (snap.request) { _resendAll = true; break; }
+                        for (int i = 0; i < snap.keys.Count && i < snap.items.Count; i++)
+                            PendingRemote[snap.keys[i]] = snap.items[i]; // newest wins per slot
                     }
                     catch (Exception e) { CoopPlugin.Log.LogWarning("Could not read the partner's shop: " + e.Message); }
                     break;
@@ -144,6 +157,7 @@ namespace Coop.Plugin.Shared
                     var es = (EntityStates)msg;
                     if (es.Group != EntityStates.ShopVisitors || !IsGuest() || !WorldSync.InHostWorld) return;
                     _hostCashWaiting = es.Extra == 1;
+                    _lastVisitorsAt = Time.realtimeSinceStartup;
                     VisitorPuppets.Show(es);
                     break;
             }
@@ -174,9 +188,9 @@ namespace Coop.Plugin.Shared
         {
             if (!Connected(out var s)) return;
             var refs = Refs();
-            if (refs == null) { if (!s.IsHost) VisitorPuppets.Clear(); return; }
+            if (refs == null) { if (!s.IsHost) { VisitorPuppets.Clear(); _hostCashWaiting = false; } return; }
             // Before the guest has loaded the host's world, their town is their own: never mix it in.
-            if (!s.IsHost && !WorldSync.InHostWorld) { _pendingRemote = null; _last = null; return; }
+            if (!s.IsHost && !WorldSync.InHostWorld) return;
             float now = Time.realtimeSinceStartup;
 
             if (s.IsHost && now >= _nextVisitors)
@@ -184,94 +198,130 @@ namespace Coop.Plugin.Shared
                 _nextVisitors = now + VisitorInterval;
                 SendVisitors(s, refs);
             }
+            // Host left town or stopped sending: no customers, nothing at the register.
+            if (!s.IsHost && now - _lastVisitorsAt > 1.5f) { VisitorPuppets.Clear(); _hostCashWaiting = false; }
 
             if (now < _nextState) return;
             _nextState = now + StateInterval;
 
-            // Don't change items under an open chest/showcase/price panel; apply once it closes.
-            bool busy = GUIManager.Instance != null && GUIManager.Instance.currentInventory != null;
-            if (_pendingRemote != null && !busy)
+            var cur = Read(refs);
+            if (!_baseReady)
             {
-                var snap = _pendingRemote;
-                _pendingRemote = null;
-                ApplySnapshot(refs, snap);
-                _last = Serialize(Build(refs));
+                // Both games start from the same shop (the guest loaded the host's world), so the
+                // current state is the agreed one. The guest asks for every slot in case the host
+                // changed something while the guest was loading.
+                foreach (var kv in cur) Base[kv.Key] = Sig(kv.Value);
+                _baseReady = true;
+                if (!s.IsHost) Send(s, new ShopSnapshot { request = true });
                 return;
             }
 
-            string json = Serialize(Build(refs));
-            if (json == null || json == _last) return;
-            bool first = _last == null;
-            _last = json;
-            // The host's shop wins when the session starts: the guest only waits for it.
-            if (first && !s.IsHost) return;
-            s.SendGame(MessageType.ShopState, new ShopState { Data = PackedText.Pack(json) });
+            // Don't change items under an open chest/showcase/price panel; apply once it closes.
+            bool busy = GUIManager.Instance != null && GUIManager.Instance.currentInventory != null;
+            if (PendingRemote.Count > 0 && !busy)
+            {
+                ApplyRemote(refs, s.IsHost, cur);
+                cur = Read(refs);
+            }
+
+            var changed = new ShopSnapshot();
+            foreach (var kv in cur)
+            {
+                string sig = Sig(kv.Value);
+                if (!_resendAll && Base.TryGetValue(kv.Key, out var agreed) && agreed == sig) continue;
+                Base[kv.Key] = sig;
+                changed.keys.Add(kv.Key);
+                changed.items.Add(kv.Value);
+            }
+            _resendAll = false;
+            if (changed.keys.Count > 0) Send(s, changed);
         }
 
-        private static ShopSnapshot Build(ShopReferences refs)
-        {
-            var snap = new ShopSnapshot();
-            var sm = ShopManager.Instance;
-            foreach (var slot in sm.itemPoints)
-                snap.showcases.Add(slot != null && slot.itemStack != null ? new ItemSaveInfo(slot.itemStack) : new ItemSaveInfo());
-            foreach (var chest in refs.shopChests)
-                snap.chests.Add(chest != null ? new ChestSaveInfo(chest) : new ChestSaveInfo());
-            return snap;
-        }
-
-        private static string Serialize(ShopSnapshot snap)
+        private static void Send(PeerSession s, ShopSnapshot snap)
         {
             try
             {
                 FsJSONManager.Serialize(snap, out fsData data);
-                return data.ToString();
+                s.SendGame(MessageType.ShopState, new ShopState { Data = PackedText.Pack(data.ToString()) });
             }
-            catch (Exception e)
-            {
-                CoopPlugin.Log.LogWarning("Could not describe the shop: " + e.Message);
-                return null;
-            }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Could not send the shop: " + e.Message); }
         }
 
-        private static void ApplySnapshot(ShopReferences refs, ShopSnapshot snap)
+        private static string Sig(ItemSaveInfo i)
+            => ItemFactory.IsEmpty(i) ? "" : $"{i.name}|{i.plusLevel}|{i.quantity}|{i.sellingPrize}|{i.enchantmentLevel}|{i.enchantmentEffectName}|{i.curseName}";
+
+        /// <summary>Every shop slot here, by key.</summary>
+        private static Dictionary<string, ItemSaveInfo> Read(ShopReferences refs)
+        {
+            var map = new Dictionary<string, ItemSaveInfo>();
+            var sm = ShopManager.Instance;
+            for (int i = 0; i < sm.itemPoints.Count; i++)
+            {
+                var slot = sm.itemPoints[i];
+                map["s" + i] = slot != null && slot.itemStack != null ? new ItemSaveInfo(slot.itemStack) : new ItemSaveInfo();
+            }
+            for (int c = 0; c < refs.shopChests.Count; c++)
+            {
+                var chest = refs.shopChests[c];
+                if (chest == null) continue;
+                var content = chest.ChestContent;
+                for (int i = 0; i < content.Count; i++)
+                    map["c" + c + ":" + i] = content[i] != null ? new ItemSaveInfo(content[i]) : new ItemSaveInfo();
+            }
+            return map;
+        }
+
+        private static void ApplyRemote(ShopReferences refs, bool isHost, Dictionary<string, ItemSaveInfo> cur)
         {
             var sm = ShopManager.Instance;
+            var incoming = new List<KeyValuePair<string, ItemSaveInfo>>(PendingRemote);
+            PendingRemote.Clear();
             _applyingRemote = true;
             try
             {
-                for (int i = 0; i < sm.itemPoints.Count && i < snap.showcases.Count; i++)
+                foreach (var kv in incoming)
                 {
-                    var slot = sm.itemPoints[i];
-                    var want = snap.showcases[i];
-                    if (slot == null || ItemFactory.Same(slot.itemStack, want)) continue;
-                    var old = slot.itemStack;
-                    if (old != null)
+                    string key = kv.Key;
+                    var want = kv.Value;
+                    if (!cur.TryGetValue(key, out var have)) continue;
+                    string localSig = Sig(have);
+                    Base.TryGetValue(key, out var agreed);
+                    // Changed here too and not sent yet: the host's version wins.
+                    if (localSig != agreed && isHost) continue;
+                    if (localSig == Sig(want)) { Base[key] = localSig; continue; }
+
+                    ItemStack built = null;
+                    if (!ItemFactory.IsEmpty(want))
                     {
-                        slot.itemStack = null;
-                        slot.SetItem(null);
-                        ItemFactory.Destroy(old);
-                    }
-                    var stack = ItemFactory.Build(want);
-                    if (stack != null) slot.SetItem(stack);
-                }
-                for (int c = 0; c < refs.shopChests.Count && c < snap.chests.Count; c++)
-                {
-                    var chest = refs.shopChests[c];
-                    var want = snap.chests[c];
-                    if (chest == null || want == null || want.items == null) continue;
-                    var content = chest.ChestContent;
-                    for (int i = 0; i < want.items.Count && i < content.Count; i++)
-                    {
-                        var have = content[i];
-                        if (ItemFactory.Same(have, want.items[i])) continue;
-                        if (have != null)
+                        built = ItemFactory.Build(want);
+                        if (built == null)
                         {
-                            chest.SetItem(null, i);
-                            ItemFactory.Destroy(have);
+                            // Can't make this item here (missing DLC?): keep ours, don't destroy it.
+                            CoopPlugin.Log.LogWarning("Shop item not available here: " + want.name);
+                            continue;
                         }
-                        var stack = ItemFactory.Build(want.items[i]);
-                        if (stack != null) chest.SetItem(stack, i);
                     }
+                    if (key[0] == 's')
+                    {
+                        int i = int.Parse(key.Substring(1));
+                        if (i >= sm.itemPoints.Count || sm.itemPoints[i] == null) { ItemFactory.Destroy(built); continue; }
+                        var slot = sm.itemPoints[i];
+                        var old = slot.itemStack;
+                        if (old != null) { slot.itemStack = null; slot.SetItem(null); ItemFactory.Destroy(old); }
+                        if (built != null) slot.SetItem(built);
+                    }
+                    else
+                    {
+                        int colon = key.IndexOf(':');
+                        int c = int.Parse(key.Substring(1, colon - 1));
+                        int i = int.Parse(key.Substring(colon + 1));
+                        var chest = c < refs.shopChests.Count ? refs.shopChests[c] : null;
+                        if (chest == null || i >= chest.ChestContent.Count) { ItemFactory.Destroy(built); continue; }
+                        var old = chest.ChestContent[i];
+                        if (old != null) { chest.SetItem(null, i); ItemFactory.Destroy(old); }
+                        if (built != null) chest.SetItem(built, i);
+                    }
+                    Base[key] = Sig(want);
                 }
             }
             catch (Exception e)

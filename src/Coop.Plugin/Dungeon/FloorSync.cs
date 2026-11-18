@@ -144,13 +144,13 @@ namespace Coop.Plugin.Dungeon
             string json = null;
             while (Time.realtimeSinceStartup < deadline)
             {
-                if (token != _travelToken) yield break; // a newer trip replaced this one
+                if (token != _travelToken) { ClientBuilding = false; yield break; } // a newer trip replaced this one
                 if (Layouts.TryTake((int)culture, level, out json)) break;
                 if (!Connected(out _)) break;
                 yield return null;
             }
-            if (token != _travelToken) yield break;
-            if (GameManager.Instance != null && !GameManager.Instance.IsDungeonSceneLoaded()) yield break;
+            if (token != _travelToken) { ClientBuilding = false; yield break; }
+            if (GameManager.Instance != null && !GameManager.Instance.IsDungeonSceneLoaded()) { ClientBuilding = false; yield break; }
 
             DungeonSaveInfo info = null;
             if (json != null)
@@ -175,6 +175,13 @@ namespace Coop.Plugin.Dungeon
 
             ClientBuilding = false;
             CoopPlugin.Log.LogWarning($"No floor layout from the host for {culture} floor {level}; generating locally");
+            // A different floor than the host's can't be shared: end the session rather than
+            // let the two games drift apart room by room.
+            if (Connected(out _))
+            {
+                CoopToast.Show("Couldn't get the host's floor - left co-op");
+                CoopManager.Instance?.Leave();
+            }
             IEnumerator own;
             _bypassPrefix = true;
             try { own = DungeonGenerator.GenerateDungeon(culture, level, false); }

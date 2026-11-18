@@ -44,7 +44,12 @@ namespace Coop.Plugin.Shared
         private const float BedWindow = 30f;
         private static float _hostSleptAt = -100f;
 
-        private static bool FromBedNow() => Time.realtimeSinceStartup - _hostSleptAt < BedWindow;
+        private static bool TakeFromBed()
+        {
+            bool fromBed = Time.realtimeSinceStartup - _hostSleptAt < BedWindow;
+            _hostSleptAt = -100f;
+            return fromBed;
+        }
 
         private static int TotalDays() => MoonlighterCalendar.Instance != null ? MoonlighterCalendar.TotalDays : -1;
 
@@ -62,7 +67,7 @@ namespace Coop.Plugin.Shared
             s.SendGame(MessageType.DayTimeSync, new DayTimeSync
             {
                 Value = (byte)TimeManagerV2.Instance.CurrrentDayTime,
-                FromBed = FromBedNow(), // closing the shop also turns the day to evening
+                FromBed = TakeFromBed(), // closing the shop also turns the day to evening
                 TotalDays = TotalDays(),
             });
         }

@@ -33,6 +33,7 @@ namespace Coop.Plugin.Shared
         private static string _pendingJson;
         private static float _menuSince = -1f;
         private static bool _toldPressKey;
+        private static float _menuRequestedAt;
 
         public static void Attach(PeerSession session)
         {
@@ -132,8 +133,10 @@ namespace Coop.Plugin.Shared
             // In a game: go to the main menu first (the game only loads a slot from there).
             if (HeroMerchant.Instance != null && (gm.IsTownSceneLoaded() || gm.IsDungeonSceneLoaded()))
             {
-                if (KeepSessionOnMenu) return; // already on the way
+                // Already on the way. The game ignores the request while a scene loads: try again.
+                if (KeepSessionOnMenu && Time.realtimeSinceStartup - _menuRequestedAt < 10f) return;
                 KeepSessionOnMenu = true;
+                _menuRequestedAt = Time.realtimeSinceStartup;
                 CoopPlugin.Log.LogInfo("Co-op: going to the main menu to load the host's world");
                 gm.ReturnToMainMenu();
                 return;
@@ -179,10 +182,20 @@ namespace Coop.Plugin.Shared
 
             // Keep this player's own bag, equipment and weapon set.
             var own = SaveGuard.OwnSlotCopy();
-            world.willInventory = own != null ? new List<ItemSaveInfo>(own.willInventory) : new List<ItemSaveInfo>();
-            world.willEquippedItems = own != null ? new List<ItemSaveInfo>(own.willEquippedItems) : new List<ItemSaveInfo>();
-            world.equippedWeaponSet = own != null ? own.equippedWeaponSet : 0;
-            if (own != null) { world.equippedFamiliar = own.equippedFamiliar; world.familiarsDiscovered = own.familiarsDiscovered; }
+            if (own == null)
+            {
+                // Without a copy of their own save the guest would play with an empty bag and
+                // could keep nothing: don't join.
+                CoopToast.Show("Can't join: load your own save first, then join from the pause menu");
+                CoopPlugin.Log.LogWarning("Co-op: no copy of your own save; leaving instead of joining with an empty bag");
+                CoopManager.Instance?.Leave();
+                return false;
+            }
+            world.willInventory = new List<ItemSaveInfo>(own.willInventory);
+            world.willEquippedItems = new List<ItemSaveInfo>(own.willEquippedItems);
+            world.equippedWeaponSet = own.equippedWeaponSet;
+            world.equippedFamiliar = own.equippedFamiliar;
+            world.familiarsDiscovered = own.familiarsDiscovered;
 
             LoadingHostWorld = true;
             gm.currentGameSlot = world;
@@ -200,6 +213,9 @@ namespace Coop.Plugin.Shared
         private static void StartGamePrefix()
         {
             if (_pendingJson == null || !Connected(out var s) || s.IsHost) return;
+            // StartGame does nothing unless the menu is open; only then swap in the host's world.
+            var menu = UnityEngine.Object.FindObjectOfType<MainMenuPanel>();
+            if (menu == null || !Traverse.Create(menu).Field("_open").GetValue<bool>()) return;
             var gm = GameManager.Instance;
             if (gm != null) PrepareWorld(gm);
         }
@@ -212,6 +228,7 @@ namespace Coop.Plugin.Shared
             if (gm == null || HeroMerchant.Instance == null) return;
             CoopToast.Show("Lost the host. Your bag and gear are kept; back to the main menu");
             CoopPlugin.Log.LogInfo("Co-op: host gone; saving your bag and returning to the main menu");
+            GhostMode.ReclaimPile();
             try
             {
                 // Writes this player's own slot with the current bag and gear (SaveGuard).
