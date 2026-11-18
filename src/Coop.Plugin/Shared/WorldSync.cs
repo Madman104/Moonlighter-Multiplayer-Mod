@@ -35,6 +35,90 @@ namespace Coop.Plugin.Shared
         private static bool _toldPressKey;
         private static float _menuRequestedAt;
 
+        // ---- first visit to a host's world: tutorial or skip ----
+        private enum Choice { None, Asking, Tutorial, Skip }
+        private static Choice _choice = Choice.None;
+        private static bool _tutorialRun;
+
+        /// <summary>Guest: playing the game's tutorial on the way into the host's world (co-op paused).</summary>
+        public static bool InTutorial => _tutorialRun && LoadingHostWorld;
+
+        private static int PendingSeed()
+        {
+            if (_pendingJson == null) return 0;
+            GameSlot w = null;
+            try { FsJSONManager.Deserialize(_pendingJson, ref w, false); } catch (Exception) { }
+            return w != null ? w.seed : 0;
+        }
+
+        private static bool KnownWorld(int seed)
+        {
+            foreach (var part in (CoopConfig.JoinedWorlds.Value ?? "").Split(','))
+                if (part.Trim() == seed.ToString()) return true;
+            return false;
+        }
+
+        private static void RememberWorld(int seed)
+        {
+            if (KnownWorld(seed)) return;
+            var v = CoopConfig.JoinedWorlds.Value;
+            CoopConfig.JoinedWorlds.Value = string.IsNullOrEmpty(v) ? seed.ToString() : v + "," + seed;
+        }
+
+        /// <summary>True while the choice is still open (show it if not shown yet).</summary>
+        private static bool ChoicePending()
+        {
+            if (_choice == Choice.Tutorial || _choice == Choice.Skip) return false;
+            if (_choice == Choice.Asking) return true;
+            int seed = PendingSeed();
+            if (seed == 0 || KnownWorld(seed)) { _choice = Choice.Skip; _skipQuiet = true; return false; }
+            Ask(seed);
+            return _choice == Choice.Asking;
+        }
+
+        private static bool _skipQuiet; // known world: nothing to give, nothing to ask
+
+        private static void Ask(int seed)
+        {
+            _choice = Choice.Asking;
+            try
+            {
+                var prefab = Resources.Load<GameObject>("Dialogs/OptionsDialog");
+                var dialog = UnityEngine.Object.Instantiate(prefab).GetComponent<OptionsDialog>();
+                dialog.ShowDialog("First time in this world. Play the tutorial? (Skip gives you a starter sword.)",
+                    "Play the tutorial", "Skip");
+                dialog.Init(() => Decide(seed, Choice.Tutorial, dialog), () => Decide(seed, Choice.Skip, dialog));
+            }
+            catch (Exception e)
+            {
+                CoopPlugin.Log.LogWarning("Could not show the tutorial question (" + e.Message + "); skipping it");
+                Decide(seed, Choice.Skip, null);
+            }
+        }
+
+        private static void Decide(int seed, Choice c, OptionsDialog dialog)
+        {
+            _choice = c;
+            _skipQuiet = false;
+            RememberWorld(seed);
+            if (dialog != null) UnityEngine.Object.Destroy(dialog.gameObject, 1f);
+            CoopPlugin.Log.LogInfo(c == Choice.Tutorial ? "Co-op: playing the tutorial first" : "Co-op: skipping the tutorial");
+        }
+
+        /// <summary>Skip: a player with no weapon gets the game's starter sword (Training Sword).</summary>
+        private static void EnsureWeapon(GameSlot world)
+        {
+            const int weapon1 = (int)HeroMerchantInventory.EquipmentSlot.Weapon1, weapon2 = (int)HeroMerchantInventory.EquipmentSlot.Weapon2;
+            var eq = world.willEquippedItems;
+            while (eq.Count <= weapon2) eq.Add(new ItemSaveInfo());
+            if (!ItemFactory.IsEmpty(eq[weapon1]) || !ItemFactory.IsEmpty(eq[weapon2])) return;
+            var sword = ItemDatabase.GetItemByName("Training Sword");
+            if (sword == null) { CoopPlugin.Log.LogWarning("Starter sword not found"); return; }
+            eq[weapon1] = new ItemSaveInfo(sword);
+            world.equippedWeaponSet = 0;
+            CoopToast.Show("You got a Training Sword");
+        }
+
         public static void Attach(CoopLink session)
         {
             _pendingJson = null;
@@ -54,6 +138,8 @@ namespace Coop.Plugin.Shared
                 if (st == SessionState.Connected && !session.IsHost) CoopToast.Show("Connected - joining the host's world...");
                 if (st != SessionState.Closed) return;
                 _pendingJson = null;
+                _choice = Choice.None;
+                _tutorialRun = false;
                 KeepSessionOnMenu = false;
                 LoadingHostWorld = false;
                 if (InHostWorld && !session.IsHost) GuestLostHost();
@@ -126,6 +212,7 @@ namespace Coop.Plugin.Shared
                 {
                     LoadingHostWorld = false;
                     InHostWorld = true;
+                    _tutorialRun = false;
                     Dungeon.TravelSync.RequestCatchUp();
                     CoopToast.Show("You're in the host's world");
                     CoopPlugin.Log.LogInfo("Co-op: playing in the host's world");
@@ -160,6 +247,7 @@ namespace Coop.Plugin.Shared
                 return;
             }
             if (Time.realtimeSinceStartup - _menuSince < 1f) return; // let the menu settle
+            if (ChoicePending()) return;
             LoadHostWorld(gm, menu);
         }
 
@@ -201,6 +289,12 @@ namespace Coop.Plugin.Shared
             world.equippedFamiliar = own.equippedFamiliar;
             world.familiarsDiscovered = own.familiarsDiscovered;
 
+            _tutorialRun = _choice == Choice.Tutorial;
+            if (_tutorialRun) world.playedTutorial = 0;   // the game runs its tutorial, then the town
+            else if (!_skipQuiet) EnsureWeapon(world);
+            _choice = Choice.None;
+            _skipQuiet = false;
+
             LoadingHostWorld = true;
             gm.currentGameSlot = world;
             CoopPlugin.Log.LogInfo("Co-op: loading the host's world");
@@ -214,14 +308,16 @@ namespace Coop.Plugin.Shared
         }
 
         // The guest pressed Continue (or our own call): load the host's world if it has arrived.
-        private static void StartGamePrefix()
+        private static bool StartGamePrefix()
         {
-            if (_pendingJson == null || !Connected(out var s) || s.IsHost) return;
+            if (_pendingJson == null || !Connected(out var s) || s.IsHost) return true;
             // StartGame does nothing unless the menu is open; only then swap in the host's world.
             var menu = UnityEngine.Object.FindObjectOfType<MainMenuPanel>();
-            if (menu == null || !Traverse.Create(menu).Field("_open").GetValue<bool>()) return;
+            if (menu == null || !Traverse.Create(menu).Field("_open").GetValue<bool>()) return true;
+            if (ChoicePending()) return false; // answer the tutorial question first
             var gm = GameManager.Instance;
             if (gm != null) PrepareWorld(gm);
+            return true;
         }
 
         // The host went away while the guest was in the host's world: back to the guest's own game.

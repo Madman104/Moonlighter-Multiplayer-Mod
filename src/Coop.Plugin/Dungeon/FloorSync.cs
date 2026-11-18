@@ -150,7 +150,7 @@ namespace Coop.Plugin.Dungeon
         // Client: build the host's floor instead of a random one.
         private static bool GeneratePrefix(ItemMaster.Culture culture, int level, bool test, ref IEnumerator __result)
         {
-            if (_bypassPrefix || test || !IsSharedCulture(culture) || !Connected(out var s) || s.IsHost) return true;
+            if (_bypassPrefix || test || !IsSharedCulture(culture) || !Connected(out var s) || s.IsHost || Shared.WorldSync.InTutorial) return true;
             __result = ClientFloor(culture, level, _travelToken);
             return false;
         }

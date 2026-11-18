@@ -12,6 +12,7 @@ namespace Coop.Plugin.Dungeon
 
         public static bool InSharedDungeon()
         {
+            if (Shared.WorldSync.InTutorial) return false;
             var gm = GameManager.Instance;
             var dm = DungeonManager.Instance;
             return gm != null && dm != null && gm.IsDungeonSceneLoaded() && Contains(dm.culture);

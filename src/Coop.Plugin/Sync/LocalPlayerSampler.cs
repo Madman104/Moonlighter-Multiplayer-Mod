@@ -53,6 +53,7 @@ namespace Coop.Plugin.Sync
 
             var will = HeroMerchant.Instance;
             int scene = GameInfo.CurrentSceneId();
+            if (Shared.WorldSync.InTutorial) scene = -1; // not in the shared world yet: don't draw us
             if (will == null)
             {
                 session.SendPlayerState(new PlayerState { Tick = ++_tick, SceneId = -1, Hp = -1f, Layers = new SpriteLayer[0] });

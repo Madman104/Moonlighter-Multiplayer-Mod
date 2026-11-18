@@ -2,7 +2,7 @@
 
 <!-- download -->
 ## Download & install (players)
-1. Download the zip from **[Releases](https://github.com/Madman104/Moonlighter-Multiplayer-Mod/releases/latest)** (`MoonlighterCoop-1.1.1.zip` under Assets).
+1. Download the zip from **[Releases](https://github.com/Madman104/Moonlighter-Multiplayer-Mod/releases/latest)** (`MoonlighterCoop-1.1.2.zip` under Assets).
 2. Install **BepInEx 5** (5.4.x, x64) into your Moonlighter folder, the one with `Moonlighter.exe`. To find it in Steam: right-click Moonlighter → Manage → Browse local files. Start the game once, then close it.
 3. Unzip the mod zip into that same folder. You should end up with `BepInEx\plugins\MoonlighterCoop\Coop.Plugin.dll`.
 4. Everyone playing needs the same mod version and the same DLC.

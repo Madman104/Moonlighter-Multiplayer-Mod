@@ -74,7 +74,7 @@ namespace Coop.Plugin.Shared
 
         private static void OnGameMessage(MessageType type, object msg)
         {
-            if (type != MessageType.DayTimeSync || !Connected(out var s) || s.IsHost) return;
+            if (type != MessageType.DayTimeSync || !Connected(out var s) || s.IsHost || WorldSync.InTutorial) return;
             var tm = TimeManagerV2.Instance;
             if (tm == null) return;
             var d = (DayTimeSync)msg;

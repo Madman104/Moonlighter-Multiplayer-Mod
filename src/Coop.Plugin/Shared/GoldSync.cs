@@ -62,7 +62,7 @@ namespace Coop.Plugin.Shared
 
         private static void ValuePostfix(Stat __instance, float __state)
         {
-            if (float.IsNaN(__state) || _applyingRemote || _loadingSave || !Connected(out var s)) return;
+            if (float.IsNaN(__state) || _applyingRemote || _loadingSave || !Connected(out var s) || WorldSync.InTutorial) return;
             int delta = Mathf.RoundToInt((float)__instance.Value - __state);
             if (s.IsHost && delta > 0)
             {
@@ -74,6 +74,7 @@ namespace Coop.Plugin.Shared
 
         private static void OnGameMessage(MessageType type, object msg)
         {
+            if (WorldSync.InTutorial) return; // the host's total arrives again every 2 s
             if (type == MessageType.GoldDelta)
             {
                 int delta = ((GoldDelta)msg).Delta;

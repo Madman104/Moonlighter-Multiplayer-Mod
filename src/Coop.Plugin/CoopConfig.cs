@@ -8,6 +8,7 @@ namespace Coop.Plugin
         public static ConfigEntry<int> Port;
         public static ConfigEntry<string> LastHostAddress;
         public static ConfigEntry<KeyCode> WindowKey;
+        public static ConfigEntry<string> JoinedWorlds;
 
         public static void Bind(ConfigFile cfg)
         {
@@ -16,6 +17,8 @@ namespace Coop.Plugin
             LastHostAddress = cfg.Bind("Connection", "LastHostAddress", "127.0.0.1",
                 "Address last used in Join (IP).");
             WindowKey = cfg.Bind("UI", "WindowKey", KeyCode.F8, "Key that opens the co-op window.");
+            JoinedWorlds = cfg.Bind("Co-op", "JoinedWorlds", "",
+                "Hosts' worlds this player has joined before (save seeds). A world not listed asks: tutorial or skip.");
         }
     }
 }

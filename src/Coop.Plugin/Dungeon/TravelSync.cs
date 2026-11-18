@@ -62,7 +62,7 @@ namespace Coop.Plugin.Dungeon
 
         private static void SendLocal(MessageType type, object msg)
         {
-            if (_applyingRemote || !Connected(out var s)) return;
+            if (_applyingRemote || !Connected(out var s) || Shared.WorldSync.InTutorial) return;
             if (type == MessageType.RoomChange) _roomArbiter.LocalTravel(Now);
             s.SendGame(type, msg);
         }
@@ -217,6 +217,7 @@ namespace Coop.Plugin.Dungeon
                 return;
             }
             if (type != MessageType.DungeonTravel && type != MessageType.TownTravel && type != MessageType.RoomChange) return;
+            if (Shared.WorldSync.InTutorial) return; // caught up once the tutorial ends (CatchUp)
             if (type == MessageType.RoomChange)
             {
                 // Floor still being built here: remember only the latest room, apply when ready.
