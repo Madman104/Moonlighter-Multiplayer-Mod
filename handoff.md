@@ -1,4 +1,4 @@
-# Moonlighter Co-op — handoff (1.0.2, 2026-11-18)
+# Moonlighter Co-op — handoff (1.1.4, 2026-11-18)
 
 ## Where things are
 - **Repo:** `C:\Users\jhn\OneDrive\Documents\GitHub\Moonlighter-Multiplayer-Mod`, pushed to GitHub `Madman104/Moonlighter-Multiplayer-Mod`, branch `main` (all work, including the old stage branches' history).
@@ -24,6 +24,29 @@
 | Saves | Host saves normally. The guest's own save only gets their bag, gear and weapon set | Copy/read-back seen in logs; real save not played |
 | Disconnect | Host gone → guest's bag saved, guest to main menu (a ghost guest just stops being a ghost). Guest gone → host plays on; paused enemies resume | Not played |
 | Controller | All co-op menus are the game's own buttons with explicit up/down links. Steam invites through the overlay. INVITE FRIEND reopens the invite window | Keyboard navigation of the main menu entry tested by you |
+
+
+## Next requests (asked 2026-11-18, not started; usage ran out)
+1. **"Everything server side": when one player interacts, everyone sees it.** Needs a list of which interactions. Likely candidates, each a small host-relayed event:
+   - dungeon chests opening, and whether chest loot is shared or per player (currently per player);
+   - doors, levers, secret rooms and breakable obstacles;
+   - healing pools (draining is already shared);
+   - picking up items off the floor;
+   - shop and town NPC talk.
+
+   Approach: patch each interaction method; send an event with room key and object index; other games play the same method with the interaction marked as remote.
+2. **Hear each other's sound effects** (footsteps, sword swings). Approach:
+   - Patch MasterAudio's `PlaySound*` calls made from the local Will (HeroMerchantController / weapon code). Send the sound name, position and volume, throttled.
+   - Other games play it at the partner's puppet, with distance falloff.
+   - Check in the decompiled code which calls are Will's, e.g. `PlayFootstepSound` or the swing sounds in `HeroMerchantController`.
+3. **"Some enemies have weird interactions with multiple players."** Ask which enemies and what happens.
+   - Known cause: each enemy is run by the nearest player's game, and its AI only sees that game's Will (`HeroMerchant.Instance`).
+   - So it only ever targets one player. Its projectiles show only on the runner's screen, and summons from the other runner are drawn as copies.
+   - A fix per enemy type is possible once we know which ones.
+
+## Where things stand (1.1.4)
+- `main` = 1.1.4, released on GitHub as Latest. It has: up to 4 players; the tutorial question on the main menu; a new save for players with none; Steam names coloured by health; names just above the head (logs "Name placement: …" to tune if still off).
+- Not installed in the host's game yet (the game was running).
 
 ## 1.1.0 — up to 4 players (branch `feat/four-players`, not merged)
 - **CoopLink** (Core, tested): the host keeps one session per guest (up to 3). Everything a guest sends is forwarded to the other guests, tagged with the sender's player number. Host 0, guests 1–3.
