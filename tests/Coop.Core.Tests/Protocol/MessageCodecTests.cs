@@ -80,6 +80,14 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void SpriteDef_round_trips()
+        {
+            var d = RoundTrip(MessageType.SpriteDef, new SpriteDef { Id = 513, Key = "WillSheet/walk_down_3" });
+            Assert.Equal(513, d.Id);
+            Assert.Equal("WillSheet/walk_down_3", d.Key);
+        }
+
+        [Fact]
         public void Bye_round_trips_with_no_body()
         {
             var (type, msg) = MessageCodec.Decode(MessageCodec.Encode(MessageType.Bye, null));

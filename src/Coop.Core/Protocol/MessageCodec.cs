@@ -41,6 +41,11 @@ namespace Coop.Core.Protocol
                     case MessageType.Pong:
                         w.Write(((Ping)msg).Nonce);
                         break;
+                    case MessageType.SpriteDef:
+                        var sd = (SpriteDef)msg;
+                        w.Write(sd.Id);
+                        w.Write(sd.Key ?? "");
+                        break;
                     case MessageType.Bye:
                         break;
                     default:
@@ -78,6 +83,8 @@ namespace Coop.Core.Protocol
                         case MessageType.Ping:
                         case MessageType.Pong:
                             return (type, new Ping { Nonce = rd.ReadUInt32() });
+                        case MessageType.SpriteDef:
+                            return (type, new SpriteDef { Id = rd.ReadUInt16(), Key = rd.ReadString() });
                         case MessageType.Bye:
                             return (type, null);
                         default:

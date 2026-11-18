@@ -38,6 +38,7 @@ namespace Coop.Core.Session
 
         public event Action<SessionState> StateChanged;
         public event Action<PlayerState> PlayerStateReceived;
+        public event Action<SpriteDef> SpriteDefReceived;
 
         public PeerSession(ITransport transport, Hello local, bool ignoreDlc, Func<double> clock)
         {
@@ -88,6 +89,12 @@ namespace Coop.Core.Session
         {
             if (State != SessionState.Connected) return;
             Send(MessageType.PlayerState, state, false);
+        }
+
+        public void SendSpriteDef(SpriteDef def)
+        {
+            if (State != SessionState.Connected) return;
+            Send(MessageType.SpriteDef, def, true);
         }
 
         /// <summary>Leaves the session and tells the other player.</summary>
@@ -145,6 +152,9 @@ namespace Coop.Core.Session
                     break;
                 case MessageType.PlayerState when State == SessionState.Connected:
                     PlayerStateReceived?.Invoke((PlayerState)msg);
+                    break;
+                case MessageType.SpriteDef when State == SessionState.Connected:
+                    SpriteDefReceived?.Invoke((SpriteDef)msg);
                     break;
                 // Pong only refreshes _lastReceive; anything out of order is ignored.
             }

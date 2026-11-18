@@ -113,6 +113,20 @@ namespace Coop.Core.Tests.Session
         }
 
         [Fact]
+        public void Sprite_def_reaches_peer_reliably()
+        {
+            var (host, client, _, ct) = Pair(H(), H());
+            Pump(host, client);
+            var got = new List<SpriteDef>();
+            host.SpriteDefReceived += got.Add;
+            client.SendSpriteDef(new SpriteDef { Id = 4, Key = "a/b" });
+            Assert.True(ct.LastSendReliable);
+            host.Tick();
+            Assert.Single(got);
+            Assert.Equal("a/b", got[0].Key);
+        }
+
+        [Fact]
         public void Player_state_is_not_sent_before_connected()
         {
             var (host, _, ht, _) = Pair(H(), H());

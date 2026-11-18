@@ -9,5 +9,6 @@ namespace Coop.Core.Protocol
         Ping = 5,
         Pong = 6,
         Bye = 7,
+        SpriteDef = 8,
     }
 }

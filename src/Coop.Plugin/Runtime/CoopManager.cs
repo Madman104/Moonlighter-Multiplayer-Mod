@@ -32,6 +32,7 @@ namespace Coop.Plugin.Runtime
             go.hideFlags = HideFlags.HideAndDontSave;
             Instance = go.AddComponent<CoopManager>();
             go.AddComponent<CoopWindow>();
+            go.AddComponent<Sync.PlayerSync>();
         }
 
         /// <summary>

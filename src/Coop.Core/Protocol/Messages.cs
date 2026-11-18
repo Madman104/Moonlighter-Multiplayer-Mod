@@ -58,3 +58,16 @@ namespace Coop.Core.Protocol
         public uint Nonce;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// Tells the peer which sprite a sender-assigned id stands for. Sent reliably the first
+    /// time an id is used. Key = "textureName/spriteName".
+    /// </summary>
+    public sealed class SpriteDef
+    {
+        public ushort Id;
+        public string Key;
+    }
+}
