@@ -131,6 +131,8 @@ namespace Coop.Plugin.Runtime
             Dungeon.EnemyMirror.Attach(Session);
             Sync.PartnerSounds.Attach(Session);
             Dungeon.FloorItems.Attach(Session);
+            Dungeon.BreakableSync.Attach(Session);
+            Dungeon.ChestSync.Attach(Session);
             Shared.GoldSync.Attach(Session);
             Shared.GhostMode.Attach(Session);
             Shared.DaySync.Attach(Session);
@@ -175,6 +177,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.EnemyMirror.Tick();
             Sync.PartnerSounds.Tick();
             Dungeon.FloorItems.Tick();
+            Dungeon.ChestSync.Tick();
             Shared.GoldSync.Tick();
             Shared.DaySync.Tick();
             Shared.WorldSync.Tick();

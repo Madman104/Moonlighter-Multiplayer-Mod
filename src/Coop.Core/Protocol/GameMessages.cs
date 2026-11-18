@@ -247,3 +247,30 @@ namespace Coop.Core.Protocol
         public int Remaining;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>A player opened (or closed) a dungeon chest; others can't open it meanwhile.</summary>
+    public sealed class ChestUse
+    {
+        public int RoomKey;
+        public byte Index; // in room.roomChests (spawn order)
+        public bool Open;
+    }
+
+    /// <summary>A dungeon chest's whole content, as a JSON list of the game's ItemSaveInfo.</summary>
+    public sealed class ChestContents
+    {
+        public int RoomKey;
+        public byte Index;
+        public string Json = "";
+    }
+
+    /// <summary>A pot/crate/skeleton broke; X, Y are its position relative to the room.</summary>
+    public sealed class BreakableBroken
+    {
+        public int RoomKey;
+        public float X;
+        public float Y;
+    }
+}

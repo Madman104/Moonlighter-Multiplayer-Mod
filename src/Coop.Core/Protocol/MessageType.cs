@@ -35,5 +35,8 @@ namespace Coop.Core.Protocol
         PlayerSound = 31,
         FloorItemSpawn = 32,
         FloorItemTaken = 33,
+        ChestUse = 34,
+        ChestContents = 35,
+        BreakableBroken = 36,
     }
 }

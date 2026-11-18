@@ -237,7 +237,7 @@ namespace Coop.Plugin.Dungeon
             return data.ToString();
         }
 
-        private static DungeonRoom FindRoom(int key)
+        internal static DungeonRoom FindRoom(int key)
         {
             var dm = DungeonManager.Instance;
             if (dm == null) return null;

@@ -194,3 +194,10 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 3. Break a pot / get boss loot: same items on both screens.
 4. Become a ghost: your dropped bag is only on your screen.
 5. Log: "Shared floor item not known here" means the item didn't exist in that game (DLC/NG+ mismatch).
+
+## Shared chests and pots (mod 1.4.0)
+1. Same room: chests are the same type in both windows (a mimic is a mimic in both, and shares health).
+2. Clear the room, open a chest in one window: the other player gets "<name> is using this chest" if they try.
+3. Take items, close: the other window's chest now has the same items left.
+4. Break a pot in one window: it breaks in the other too, and any drop appears once (shared floor item).
+5. Log warnings to look for: "Could not apply a shared chest", "Could not break a shared breakable", "Could not tag mimics".

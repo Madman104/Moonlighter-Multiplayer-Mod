@@ -30,6 +30,7 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 | Gold: one purse, and either player's purchase spends it | Your health |
 | Dungeon floors and rooms: you're always in the same room | Your quest drops |
 | Loot on the floor: one copy for everyone, whoever picks it up first gets it | |
+| Dungeon chests (one player at a time) and pots/crates: break or empty them once for everyone | |
 | Enemies: same place, same health (2× health in co-op) | |
 | The shop: showcases, prices, chests, customers, cash register | |
 | Sounds: you hear each other's footsteps, swings and hits, quieter with distance | |

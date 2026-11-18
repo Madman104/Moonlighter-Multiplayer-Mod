@@ -157,7 +157,7 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
-        private static void SetHealth(EnemyStats stats, float value)
+        internal static void SetHealth(EnemyStats stats, float value)
         {
             // Invincibility windows run on each game's own AI; the other player's hit still counts.
             var inv = Traverse.Create(stats).Field("_invincible");

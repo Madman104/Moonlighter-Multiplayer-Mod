@@ -165,6 +165,18 @@ namespace Coop.Core.Protocol
                         var fit = (FloorItemTaken)msg;
                         w.Write(fit.Id); w.Write(fit.Remaining);
                         break;
+                    case MessageType.ChestUse:
+                        var cu = (ChestUse)msg;
+                        w.Write(cu.RoomKey); w.Write(cu.Index); w.Write(cu.Open);
+                        break;
+                    case MessageType.ChestContents:
+                        var cc = (ChestContents)msg;
+                        w.Write(cc.RoomKey); w.Write(cc.Index); w.Write(cc.Json ?? "");
+                        break;
+                    case MessageType.BreakableBroken:
+                        var bb = (BreakableBroken)msg;
+                        w.Write(bb.RoomKey); w.Write(bb.X); w.Write(bb.Y);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -231,6 +243,12 @@ namespace Coop.Core.Protocol
                             return (type, new FloorItemSpawn { Id = rd.ReadInt32(), RoomKey = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle(), Json = rd.ReadString() });
                         case MessageType.FloorItemTaken:
                             return (type, new FloorItemTaken { Id = rd.ReadInt32(), Remaining = rd.ReadInt32() });
+                        case MessageType.ChestUse:
+                            return (type, new ChestUse { RoomKey = rd.ReadInt32(), Index = rd.ReadByte(), Open = rd.ReadBoolean() });
+                        case MessageType.ChestContents:
+                            return (type, new ChestContents { RoomKey = rd.ReadInt32(), Index = rd.ReadByte(), Json = rd.ReadString() });
+                        case MessageType.BreakableBroken:
+                            return (type, new BreakableBroken { RoomKey = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle() });
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };

@@ -1,0 +1,41 @@
+using Coop.Core.Protocol;
+using Xunit;
+
+namespace Coop.Core.Tests.Protocol
+{
+    public class ChestMessageTests
+    {
+        [Fact]
+        public void ChestUse_round_trips()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.ChestUse, new ChestUse { RoomKey = 77, Index = 2, Open = true }));
+            Assert.Equal(MessageType.ChestUse, t);
+            var c = Assert.IsType<ChestUse>(m);
+            Assert.Equal(77, c.RoomKey);
+            Assert.Equal(2, c.Index);
+            Assert.True(c.Open);
+        }
+
+        [Fact]
+        public void ChestContents_round_trips()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.ChestContents, new ChestContents { RoomKey = -5, Index = 1, Json = "{\"items\":[]}" }));
+            Assert.Equal(MessageType.ChestContents, t);
+            var c = Assert.IsType<ChestContents>(m);
+            Assert.Equal(-5, c.RoomKey);
+            Assert.Equal(1, c.Index);
+            Assert.Equal("{\"items\":[]}", c.Json);
+        }
+
+        [Fact]
+        public void BreakableBroken_round_trips()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.BreakableBroken, new BreakableBroken { RoomKey = 9, X = 12.5f, Y = -40f }));
+            Assert.Equal(MessageType.BreakableBroken, t);
+            var b = Assert.IsType<BreakableBroken>(m);
+            Assert.Equal(9, b.RoomKey);
+            Assert.Equal(12.5f, b.X);
+            Assert.Equal(-40f, b.Y);
+        }
+    }
+}
