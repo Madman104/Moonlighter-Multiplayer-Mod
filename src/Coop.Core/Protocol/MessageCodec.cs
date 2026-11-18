@@ -95,6 +95,7 @@ namespace Coop.Core.Protocol
                         var dts = (DayTimeSync)msg;
                         w.Write(dts.Value);
                         w.Write(dts.FromBed);
+                        w.Write(dts.TotalDays);
                         break;
                     case MessageType.PoolSpent:
                         var ps = (PoolSpent)msg;
@@ -176,7 +177,7 @@ namespace Coop.Core.Protocol
                         case MessageType.GoldTotal:
                             return (type, new GoldTotal { Value = rd.ReadInt32() });
                         case MessageType.DayTimeSync:
-                            return (type, new DayTimeSync { Value = rd.ReadByte(), FromBed = rd.ReadBoolean() });
+                            return (type, new DayTimeSync { Value = rd.ReadByte(), FromBed = rd.ReadBoolean(), TotalDays = rd.ReadInt32() });
                         case MessageType.PoolSpent:
                             return (type, new PoolSpent { X = rd.ReadInt16(), Y = rd.ReadInt16(), Secret = rd.ReadBoolean() });
                         case MessageType.BagSnapshot:

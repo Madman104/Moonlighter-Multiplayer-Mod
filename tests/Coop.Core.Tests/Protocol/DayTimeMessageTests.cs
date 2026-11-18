@@ -8,11 +8,12 @@ namespace Coop.Core.Tests.Protocol
         [Fact]
         public void DayTimeSync_round_trips()
         {
-            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.DayTimeSync, new DayTimeSync { Value = 1, FromBed = true }));
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.DayTimeSync, new DayTimeSync { Value = 1, FromBed = true, TotalDays = 123 }));
             Assert.Equal(MessageType.DayTimeSync, t);
             var d = Assert.IsType<DayTimeSync>(m);
             Assert.Equal(1, d.Value);
             Assert.True(d.FromBed);
+            Assert.Equal(123, d.TotalDays);
         }
     }
 }

@@ -84,6 +84,8 @@ namespace Coop.Core.Protocol
     {
         public byte Value;
         public bool FromBed;
+        /// <summary>The host's calendar day count (MoonlighterCalendar.TotalDays).</summary>
+        public int TotalDays;
     }
 }
 

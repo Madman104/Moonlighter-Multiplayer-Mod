@@ -40,6 +40,9 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(PoolPrefix)));
             harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.LoadTownSceneFromDungeon)),
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(TownPrefix)));
+            // Ghosts can't drink potions.
+            harmony.Patch(AccessTools.Method(typeof(HeroMerchantController), nameof(HeroMerchantController.ConsumeHotkeyItem)),
+                prefix: new HarmonyMethod(typeof(GhostMode), nameof(BlockIfGhost)));
             // Ghosts can't pick up or attract items (the attract check asks CanPlaceItem).
             harmony.Patch(AccessTools.Method(typeof(PickOnWalk), nameof(PickOnWalk.TryToAdd)),
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(BlockIfGhost)));
@@ -84,7 +87,10 @@ namespace Coop.Plugin.Shared
         private static bool InSharedDungeon()
         {
             var gm = GameManager.Instance;
-            return gm != null && gm.IsDungeonSceneLoaded() && DungeonManager.Instance != null;
+            var dm = DungeonManager.Instance;
+            // Only the four main dungeons share enemies; elsewhere a ghost could never be revived fairly.
+            return gm != null && gm.IsDungeonSceneLoaded() && dm != null
+                && dm.culture >= ItemMaster.Culture.Golem && dm.culture <= ItemMaster.Culture.Tech;
         }
 
         private static bool DiePrefix()

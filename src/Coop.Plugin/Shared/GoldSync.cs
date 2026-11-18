@@ -1,6 +1,7 @@
 using System;
 using Coop.Core.Protocol;
 using Coop.Core.Session;
+using Coop.Core.Shared;
 using Coop.Plugin.Runtime;
 using HarmonyLib;
 using UnityEngine;
@@ -10,6 +11,8 @@ namespace Coop.Plugin.Shared
     /// <summary>
     /// One shared purse. Any change to the local Will's gold is sent as a delta; the host's
     /// total is the truth and is sent on connect and every 2 s for correction.
+    /// If both spend at once with too little gold, the host keeps the shortfall as debt and
+    /// takes it from the next income (SharedPurse), so no purchase ends up free.
     /// </summary>
     internal static class GoldSync
     {
@@ -17,6 +20,7 @@ namespace Coop.Plugin.Shared
 
         private static bool _applyingRemote;
         private static float _nextTotal;
+        private static readonly SharedPurse Purse = new SharedPurse();
 
         public static void Apply(Harmony harmony)
         {
@@ -36,7 +40,7 @@ namespace Coop.Plugin.Shared
         public static void Attach(PeerSession session)
         {
             session.GameMessageReceived += OnGameMessage;
-            session.StateChanged += st => { if (st == SessionState.Connected) _nextTotal = 0f; };
+            session.StateChanged += st => { if (st == SessionState.Connected) { _nextTotal = 0f; Purse.Reset(); } };
         }
 
         private static bool Connected(out PeerSession s)
@@ -60,12 +64,24 @@ namespace Coop.Plugin.Shared
         {
             if (float.IsNaN(__state) || _applyingRemote || _loadingSave || !Connected(out var s)) return;
             int delta = Mathf.RoundToInt((float)__instance.Value - __state);
+            if (s.IsHost && delta > 0)
+            {
+                int pay = Purse.SettleIncome(delta);
+                if (pay > 0) { AddLocal(-pay); delta -= pay; }
+            }
             if (delta != 0) s.SendGame(MessageType.GoldDelta, new GoldDelta { Delta = delta });
         }
 
         private static void OnGameMessage(MessageType type, object msg)
         {
-            if (type == MessageType.GoldDelta) AddLocal(((GoldDelta)msg).Delta);
+            if (type == MessageType.GoldDelta)
+            {
+                int delta = ((GoldDelta)msg).Delta;
+                var hm = HeroMerchant.Instance;
+                if (hm != null && Connected(out var h) && h.IsHost)
+                    SetLocal(Purse.ApplyRemoteDelta(hm.GetCurrentGold(), delta));
+                else AddLocal(delta);
+            }
             else if (type == MessageType.GoldTotal && Connected(out var s) && !s.IsHost) SetLocal(((GoldTotal)msg).Value);
         }
 

@@ -40,9 +40,18 @@ namespace Coop.Plugin.Shared
             return s != null && s.State == SessionState.Connected;
         }
 
+        // A day change within this many seconds of the host lying down came from the bed.
+        private const float BedWindow = 30f;
+        private static float _hostSleptAt = -100f;
+
+        private static bool FromBedNow() => Time.realtimeSinceStartup - _hostSleptAt < BedWindow;
+
+        private static int TotalDays() => MoonlighterCalendar.Instance != null ? MoonlighterCalendar.TotalDays : -1;
+
         private static bool SleepPrefix()
         {
-            if (!Connected(out var s) || s.IsHost) return true;
+            if (!Connected(out var s)) return true;
+            if (s.IsHost) { _hostSleptAt = Time.realtimeSinceStartup; return true; }
             CoopToast.Show("Only the host's bed ends the day");
             return false;
         }
@@ -53,7 +62,8 @@ namespace Coop.Plugin.Shared
             s.SendGame(MessageType.DayTimeSync, new DayTimeSync
             {
                 Value = (byte)TimeManagerV2.Instance.CurrrentDayTime,
-                FromBed = true,
+                FromBed = FromBedNow(), // closing the shop also turns the day to evening
+                TotalDays = TotalDays(),
             });
         }
 
@@ -64,6 +74,7 @@ namespace Coop.Plugin.Shared
             if (tm == null) return;
             var d = (DayTimeSync)msg;
             var target = (DayTime)d.Value;
+            FollowCalendar(d.TotalDays);
             if (tm.CurrrentDayTime == target) return;
             _applyingRemote = true;
             try
@@ -81,7 +92,16 @@ namespace Coop.Plugin.Shared
             {
                 _applyingRemote = false;
             }
+            FollowCalendar(d.TotalDays); // the change above may have added a day
             if (d.FromBed) CoopToast.Show(target == DayTime.Afternoon ? "Your partner rested: it's now evening" : "Your partner slept: a new day begins");
+        }
+
+        // The guest's day counter follows the host's (only morning/evening was synced before).
+        private static void FollowCalendar(int hostDays)
+        {
+            if (hostDays < 0 || MoonlighterCalendar.Instance == null || MoonlighterCalendar.TotalDays == hostDays) return;
+            try { MoonlighterCalendar.Instance.Init(hostDays); }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Could not follow the host's calendar: " + e.Message); }
         }
 
         /// <summary>Host: repeat the time of day now and then (late joiners, drift).</summary>
@@ -90,7 +110,7 @@ namespace Coop.Plugin.Shared
             if (Time.realtimeSinceStartup < _nextSync) return;
             _nextSync = Time.realtimeSinceStartup + SyncInterval;
             if (!Connected(out var s) || !s.IsHost || TimeManagerV2.Instance == null) return;
-            s.SendGame(MessageType.DayTimeSync, new DayTimeSync { Value = (byte)TimeManagerV2.Instance.CurrrentDayTime, FromBed = false });
+            s.SendGame(MessageType.DayTimeSync, new DayTimeSync { Value = (byte)TimeManagerV2.Instance.CurrrentDayTime, FromBed = false, TotalDays = TotalDays() });
         }
     }
 }
