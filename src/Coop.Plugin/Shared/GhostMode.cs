@@ -86,11 +86,8 @@ namespace Coop.Plugin.Shared
 
         private static bool InSharedDungeon()
         {
-            var gm = GameManager.Instance;
-            var dm = DungeonManager.Instance;
-            // Only the four main dungeons share enemies; elsewhere a ghost could never be revived fairly.
-            return gm != null && gm.IsDungeonSceneLoaded() && dm != null
-                && dm.culture >= ItemMaster.Culture.Golem && dm.culture <= ItemMaster.Culture.Tech;
+            // Only where enemies are shared; elsewhere a ghost could never be revived fairly.
+            return Dungeon.SharedCultures.InSharedDungeon();
         }
 
         private static bool DiePrefix()

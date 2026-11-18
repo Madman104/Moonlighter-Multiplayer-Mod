@@ -49,6 +49,7 @@ namespace Coop.Core.Protocol
                     case MessageType.Bye:
                         break;
                     case MessageType.Revive:
+                    case MessageType.EmblemReturn:
                         break;
                     case MessageType.FloorLayout:
                         var fl = (FloorLayout)msg;
@@ -144,6 +145,7 @@ namespace Coop.Core.Protocol
                         case MessageType.Bye:
                             return (type, null);
                         case MessageType.Revive:
+                        case MessageType.EmblemReturn:
                             return (type, null);
                         case MessageType.FloorLayout:
                             return (type, new FloorLayout { Culture = rd.ReadByte(), Floor = rd.ReadByte(), Json = rd.ReadString() });

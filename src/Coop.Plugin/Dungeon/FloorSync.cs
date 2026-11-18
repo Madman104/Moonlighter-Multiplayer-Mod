@@ -24,6 +24,9 @@ namespace Coop.Plugin.Dungeon
         private static bool _hooked;
         private static int _travelToken;
 
+        /// <summary>Host: the next floor is an emblem-portal return (start where the host stands).</summary>
+        public static bool HostEmblemTrip;
+
         /// <summary>True while the client is building (or waiting for) the host's floor.</summary>
         public static bool ClientBuilding { get; private set; }
 
@@ -35,7 +38,13 @@ namespace Coop.Plugin.Dungeon
             harmony.Patch(AccessTools.Method(typeof(DungeonGenerator), nameof(DungeonGenerator.GenerateDungeon),
                     new[] { typeof(ItemMaster.Culture), typeof(int), typeof(bool) }),
                 prefix: new HarmonyMethod(typeof(FloorSync), nameof(GeneratePrefix)));
+            // The saved-floor builder reveals the whole minimap at the end (meant for emblem
+            // returns). On the guest's copy of a fresh floor, rooms should appear as visited.
+            harmony.Patch(AccessTools.Method(typeof(MinimapPanel), "Reveal"),
+                prefix: new HarmonyMethod(typeof(FloorSync), nameof(RevealPrefix)));
         }
+
+        private static bool RevealPrefix() => !(ClientBuilding && Connected(out var s) && !s.IsHost);
 
         /// <summary>Called when a co-op session starts.</summary>
         public static void Attach(PeerSession session)
@@ -66,8 +75,7 @@ namespace Coop.Plugin.Dungeon
         }
 
         /// <summary>Only the four regular dungeons are generated from rooms; others are prefabs.</summary>
-        private static bool IsSharedCulture(ItemMaster.Culture c)
-            => c >= ItemMaster.Culture.Golem && c <= ItemMaster.Culture.Tech;
+        private static bool IsSharedCulture(ItemMaster.Culture c) => SharedCultures.Contains(c);
 
         private static void OnGameMessage(MessageType type, object msg)
         {
@@ -97,12 +105,17 @@ namespace Coop.Plugin.Dungeon
                 var info = new DungeonSaveInfo(dm);
                 // The saved-floor builder starts in the "portal room", or in the boss room
                 // (killing its enemies) when there is none. Point it at the first room.
-                int start = info.rooms.FindIndex(r => dm.initialDungeonRoom != null
-                    && r.x == dm.initialDungeonRoom.x && r.y == dm.initialDungeonRoom.y && !r.isSecret);
+                // After an emblem-portal return, start in the room the host is in (the portal room).
+                var startRoom = HostEmblemTrip && dm.currentDungeonRoom != null ? dm.currentDungeonRoom : dm.initialDungeonRoom;
+                HostEmblemTrip = false;
+                int start = info.rooms.FindIndex(r => startRoom != null
+                    && r.x == startRoom.x && r.y == startRoom.y && r.isSecret == startRoom.isSecret);
                 if (start >= 0)
                 {
                     info.portalRoomIndex = start;
-                    info.portalPosition = dm.initialDungeonRoom.transform.position;
+                    info.portalPosition = startRoom == dm.currentDungeonRoom && HeroMerchant.Instance != null
+                        ? HeroMerchant.Instance.transform.position
+                        : startRoom.transform.position;
                 }
                 FsJSONManager.Serialize(info, out fsData data);
                 var json = data.ToString();

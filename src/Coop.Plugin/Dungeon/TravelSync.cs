@@ -30,6 +30,9 @@ namespace Coop.Plugin.Dungeon
                 prefix: new HarmonyMethod(typeof(TravelSync), nameof(LoadDungeonPrefix)));
             harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.LoadTownSceneFromDungeon)),
                 prefix: new HarmonyMethod(typeof(TravelSync), nameof(LoadTownPrefix)));
+            // The emblem portal skips LoadDungeonScene and starts the loader itself.
+            harmony.Patch(AccessTools.Method(typeof(GameManager), nameof(GameManager.LoadDungeonSceneFromEmblemPortal)),
+                prefix: new HarmonyMethod(typeof(TravelSync), nameof(EmblemPrefix)));
             harmony.Patch(AccessTools.Method(typeof(DungeonManager), nameof(DungeonManager.ChangeRoomTo)),
                 prefix: new HarmonyMethod(typeof(TravelSync), nameof(ChangeRoomPrefix)));
             harmony.Patch(AccessTools.Method(typeof(DungeonManager), nameof(DungeonManager.SpecialChangeRoomTo)),
@@ -77,6 +80,53 @@ namespace Coop.Plugin.Dungeon
             // Emblem returns rebuild a floor from this player's own emblem save; not shared yet.
             if (fromEmblem) return;
             SendLocal(MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)culture, Level = (byte)level, Replay = replay });
+        }
+
+        /// <summary>
+        /// Emblem-portal return: the host's portal floor is the shared one. The guest's portal
+        /// asks the host to go through theirs; the host's trip is sent like any dungeon trip
+        /// and the guest builds the host's floor.
+        /// </summary>
+        private static bool EmblemPrefix(GameManager __instance)
+        {
+            if (_applyingRemote || !Connected(out var s)) return true;
+            if (!s.IsHost)
+            {
+                s.SendGame(MessageType.EmblemReturn, null);
+                CoopToast.Show("Asking the host to open their portal");
+                return false;
+            }
+            var emblem = __instance.currentGameSlot != null ? __instance.currentGameSlot.emblemDungeon : null;
+            if (emblem == null) return true;
+            FloorSync.NewTravel();
+            FloorSync.HostEmblemTrip = true;
+            _queuedRoom = null;
+            _pendingCulture = (int)emblem.culture;
+            _pendingLevel = emblem.floor;
+            _pendingUntil = Now + 15f;
+            SendLocal(MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)emblem.culture, Level = (byte)emblem.floor, Replay = false });
+            return true;
+        }
+
+        private static bool HasEmblemPortal(GameManager gm)
+        {
+            var e = gm.currentGameSlot != null ? gm.currentGameSlot.emblemDungeon : null;
+            return e != null && e.rooms != null && e.rooms.Count > 0;
+        }
+
+        // Host: the guest stepped into their portal.
+        private static void FollowEmblemRequest()
+        {
+            var gm = GameManager.Instance;
+            if (gm == null || !gm.IsTownSceneLoaded()) return;
+            if (!HasEmblemPortal(gm))
+            {
+                CoopToast.Show("Your partner tried a portal, but only the host's portal is shared");
+                return;
+            }
+            CoopPlugin.Log.LogInfo("Partner asked to return through the emblem portal");
+            CoopToast.Show("Your partner opened the portal: returning to the dungeon");
+            gm.LoadDungeonSceneFromEmblemPortal();
         }
 
         private static void LoadTownPrefix(bool fromEmblem)
@@ -136,6 +186,11 @@ namespace Coop.Plugin.Dungeon
 
         private static void OnGameMessage(MessageType type, object msg)
         {
+            if (type == MessageType.EmblemReturn)
+            {
+                if (Connected(out var hs) && hs.IsHost) FollowEmblemRequest();
+                return;
+            }
             if (type != MessageType.DungeonTravel && type != MessageType.TownTravel && type != MessageType.RoomChange) return;
             if (type == MessageType.RoomChange)
             {

@@ -57,13 +57,7 @@ namespace Coop.Plugin.Dungeon
             return s != null && s.State == SessionState.Connected;
         }
 
-        private static bool InSharedDungeon()
-        {
-            var gm = GameManager.Instance;
-            var dm = DungeonManager.Instance;
-            return gm != null && dm != null && gm.IsDungeonSceneLoaded()
-                && dm.culture >= ItemMaster.Culture.Golem && dm.culture <= ItemMaster.Culture.Tech;
-        }
+        private static bool InSharedDungeon() => SharedCultures.InSharedDungeon();
 
         // ---- double health ----
 

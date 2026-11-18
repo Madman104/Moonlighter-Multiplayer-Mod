@@ -22,5 +22,6 @@ namespace Coop.Core.Protocol
         DayTimeSync = 18,
         PoolSpent = 19,
         BagSnapshot = 20,
+        EmblemReturn = 21,
     }
 }
