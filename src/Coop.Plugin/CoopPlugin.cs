@@ -1,5 +1,7 @@
 using BepInEx;
 using BepInEx.Logging;
+using Coop.Plugin.Patches;
+using HarmonyLib;
 
 namespace Coop.Plugin
 {
@@ -11,10 +13,14 @@ namespace Coop.Plugin
 
         internal static ManualLogSource Log;
 
+        private Harmony _harmony;
+
         private void Awake()
         {
             Log = Logger;
             Log.LogInfo($"Moonlighter Co-op {ModVersion} loaded");
+            _harmony = new Harmony(Guid);
+            PlatformPatches.Apply(_harmony);
         }
     }
 }
