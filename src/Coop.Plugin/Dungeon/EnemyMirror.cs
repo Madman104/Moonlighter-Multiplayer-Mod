@@ -33,11 +33,17 @@ namespace Coop.Plugin.Dungeon
             public Vector3 Target;
             public EntityState State;
             public float At;
+            public int From;  // player whose game runs it
+            public int Key;   // room it was sent for
         }
 
+        private sealed class Player { public Vector2 Pos; public bool Ghost; public float At; public int Scene; }
+
         private static readonly SpriteIdAllocator Sprites = new SpriteIdAllocator(SpriteBase);
-        private static readonly SpriteNameMap Names = new SpriteNameMap();
-        private static readonly HashSet<ushort> GuestOwned = new HashSet<ushort>();
+        // Each runner numbers their own sprites: one map per player.
+        private static readonly Dictionary<int, SpriteNameMap> Names = new Dictionary<int, SpriteNameMap>();
+        private static readonly Dictionary<ushort, int> Owners = new Dictionary<ushort, int>();
+        private static readonly Dictionary<int, Player> Players = new Dictionary<int, Player>();
         private static readonly Dictionary<ushort, Remote> Incoming = new Dictionary<ushort, Remote>();
         private static readonly Dictionary<ushort, GameObject> Drawn = new Dictionary<ushort, GameObject>();
         /// <summary>What a paused enemy had before pausing, restored exactly on resume.</summary>
@@ -48,42 +54,48 @@ namespace Coop.Plugin.Dungeon
         }
 
         private static readonly Dictionary<GameObject, SavedState> Paused = new Dictionary<GameObject, SavedState>();
-        private static int _ownersKey = int.MinValue, _incomingKey = int.MinValue;
+        private static int _ownersKey = int.MinValue;
         private static float _nextOwners, _nextState;
-        private static Vector2 _partnerPos;
-        private static bool _partnerKnown, _partnerGhost;
-        private static float _partnerAt;
         private static Dictionary<string, Sprite> _spriteCache;
         private static float _nextCacheRefresh;
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             Reset();
             Sprites.Reset();
             Names.Clear();
-            session.SpriteDefReceived += def => { if (def.Id >= SpriteBase) Names.Define(def.Id, def.Key); };
+            Players.Clear();
+            session.SpriteDefReceived += def => { if (def.Id >= SpriteBase) NamesOf(session.LastFrom).Define(def.Id, def.Key); };
             session.PlayerStateReceived += st =>
             {
-                _partnerKnown = st.SceneId >= 0;
-                _partnerPos = new Vector2(st.X, st.Y);
-                _partnerGhost = st.Ghost;
-                _partnerAt = Time.realtimeSinceStartup;
+                if (!Players.TryGetValue(session.LastFrom, out var p)) Players[session.LastFrom] = p = new Player();
+                p.Pos = new Vector2(st.X, st.Y);
+                p.Ghost = st.Ghost || st.SceneId < 0;
+                p.Scene = st.SceneId;
+                p.At = Time.realtimeSinceStartup;
             };
+            session.PeerLeft += i => Players.Remove(i);
             session.GameMessageReceived += OnGameMessage;
             session.StateChanged += st => { if (st == SessionState.Closed) Reset(); };
         }
 
+        private static SpriteNameMap NamesOf(int player)
+        {
+            if (!Names.TryGetValue(player, out var m)) Names[player] = m = new SpriteNameMap();
+            return m;
+        }
+
         private static void Reset()
         {
-            GuestOwned.Clear();
+            Owners.Clear();
             Incoming.Clear();
             foreach (var go in Drawn.Values) if (go != null) UnityEngine.Object.Destroy(go);
             Drawn.Clear();
             ResumeAll();
-            _ownersKey = _incomingKey = int.MinValue;
+            _ownersKey = int.MinValue;
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -103,14 +115,14 @@ namespace Coop.Plugin.Dungeon
             {
                 var o = (EnemyOwners)msg;
                 _ownersKey = o.Key;
-                GuestOwned.Clear();
-                foreach (var id in o.GuestOwned) GuestOwned.Add(id);
+                Owners.Clear();
+                for (int i = 0; i < o.Ids.Length && i < o.Owners.Length; i++) Owners[o.Ids[i]] = o.Owners[i];
             }
             else if (type == MessageType.EntityStates)
             {
                 var es = (EntityStates)msg;
                 if (es.Group != EntityStates.Enemies) return;
-                if (es.Key != _incomingKey) { Incoming.Clear(); _incomingKey = es.Key; }
+                int from = CoopManager.Instance != null && CoopManager.Instance.Session != null ? CoopManager.Instance.Session.LastFrom : 0;
                 var seen = new HashSet<ushort>();
                 float now = Time.realtimeSinceStartup;
                 foreach (var e in es.Entities)
@@ -120,17 +132,20 @@ namespace Coop.Plugin.Dungeon
                     r.State = e;
                     r.Target = new Vector3(e.X, e.Y, 0f);
                     r.At = now;
+                    r.From = from;
+                    r.Key = es.Key;
                 }
+                // This runner no longer runs the ones it left out.
                 var gone = new List<ushort>();
-                foreach (var id in Incoming.Keys) if (!seen.Contains(id)) gone.Add(id);
+                foreach (var kv in Incoming) if (kv.Value.From == from && !seen.Contains(kv.Key)) gone.Add(kv.Key);
                 foreach (var id in gone) Incoming.Remove(id);
             }
         }
 
-        private static bool LocalRuns(PeerSession s, ushort id, int key)
+        private static bool LocalRuns(CoopLink s, ushort id, int key)
         {
-            bool guestRuns = key == _ownersKey && GuestOwned.Contains(id);
-            return s.IsHost ? !guestRuns : guestRuns;
+            int owner = key == _ownersKey && Owners.TryGetValue(id, out var o) ? o : 0;
+            return owner == s.LocalIndex;
         }
 
         /// <summary>Every frame (after the game's own Update), from CoopManager.</summary>
@@ -167,7 +182,7 @@ namespace Coop.Plugin.Dungeon
                     continue;
                 }
                 bool runs = LocalRuns(s, id, key);
-                bool haveRemote = Incoming.TryGetValue(id, out var remote) && _incomingKey == key && now - remote.At < 1f;
+                bool haveRemote = Incoming.TryGetValue(id, out var remote) && remote.Key == key && now - remote.At < 1f;
                 // Not run here and the runner is sending: follow it. Otherwise run it here.
                 bool follow = !runs && haveRemote;
                 SetPaused(go, follow);
@@ -179,33 +194,41 @@ namespace Coop.Plugin.Dungeon
             DrawMissing(key, present);
         }
 
-        private static void DecideOwners(PeerSession s, int key, CoopEnemyId[] enemies)
+        private static void DecideOwners(CoopLink s, int key, CoopEnemyId[] enemies)
         {
             var will = HeroMerchant.Instance;
             if (will == null) return;
             Vector2 host = will.transform.position;
             bool hostOut = Shared.GhostMode.LocalGhost;
-            bool guestIn = _partnerKnown && !_partnerGhost && Time.realtimeSinceStartup - _partnerAt < 1f;
-            if (key != _ownersKey) GuestOwned.Clear();
+            if (key != _ownersKey) Owners.Clear();
             _ownersKey = key;
+            float now = Time.realtimeSinceStartup;
+            int scene = GameInfo.CurrentSceneId();
+            var ids = new List<ushort>();
+            var owners = new List<byte>();
+            var dist = new float[CoopLink.MaxPlayers];
             foreach (var tag in enemies)
             {
                 if (tag == null || tag.Id < 0 || tag.Id > ushort.MaxValue) continue;
                 ushort id = (ushort)tag.Id;
                 Vector2 p = tag.transform.position;
-                float hd = hostOut ? float.PositiveInfinity : (p - host).sqrMagnitude;
-                float gd = guestIn ? (p - _partnerPos).sqrMagnitude : float.PositiveInfinity;
-                if (EnemyOwnership.GuestShouldOwn(GuestOwned.Contains(id), hd, gd, EnemyOwnership.DefaultMargin)) GuestOwned.Add(id);
-                else GuestOwned.Remove(id);
+                for (int i = 0; i < dist.Length; i++) dist[i] = float.PositiveInfinity;
+                if (!hostOut) dist[0] = (p - host).sqrMagnitude;
+                // A ghost, a player in town/loading, or one we haven't heard from never runs enemies.
+                foreach (var kv in Players)
+                    if (kv.Key > 0 && kv.Key < dist.Length && !kv.Value.Ghost && kv.Value.Scene == scene && now - kv.Value.At < 1f)
+                        dist[kv.Key] = (p - kv.Value.Pos).sqrMagnitude;
+                int current = Owners.TryGetValue(id, out var c) ? c : 0;
+                int owner = EnemyOwnership.Owner(current, dist, EnemyOwnership.DefaultMargin);
+                Owners[id] = owner;
+                if (owner != 0) { ids.Add(id); owners.Add((byte)owner); }
             }
-            var list = new ushort[GuestOwned.Count];
-            GuestOwned.CopyTo(list);
-            s.SendGame(MessageType.EnemyOwners, new EnemyOwners { Key = key, GuestOwned = list });
+            s.SendGame(MessageType.EnemyOwners, new EnemyOwners { Key = key, Ids = ids.ToArray(), Owners = owners.ToArray() });
         }
 
         // ---- running side ----
 
-        private static EntityState Describe(PeerSession s, Transform root, ushort id)
+        private static EntityState Describe(CoopLink s, Transform root, ushort id)
         {
             var renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
             var layers = new List<SpriteLayer>();
@@ -253,7 +276,7 @@ namespace Coop.Plugin.Dungeon
                 if (layer.Slot >= renderers.Length || renderers[layer.Slot] == null) continue;
                 var r = renderers[layer.Slot];
                 if (!layer.Visible) { r.enabled = false; continue; }
-                var sprite = Resolve(Names.GetKey(layer.SpriteId));
+                var sprite = Resolve(NamesOf(remote.From).GetKey(layer.SpriteId));
                 if (sprite == null) continue; // keep the local frame rather than blank
                 r.enabled = true;
                 r.sprite = sprite;
@@ -324,12 +347,11 @@ namespace Coop.Plugin.Dungeon
         private static void DrawMissing(int key, HashSet<ushort> present)
         {
             var keep = new HashSet<ushort>();
-            if (_incomingKey == key)
             {
                 float now = Time.realtimeSinceStartup;
                 foreach (var kv in Incoming)
                 {
-                    if (present.Contains(kv.Key) || now - kv.Value.At > 1f) continue;
+                    if (kv.Value.Key != key || present.Contains(kv.Key) || now - kv.Value.At > 1f) continue;
                     keep.Add(kv.Key);
                     if (!Drawn.TryGetValue(kv.Key, out var go) || go == null)
                     {
@@ -338,7 +360,7 @@ namespace Coop.Plugin.Dungeon
                         Drawn[kv.Key] = go;
                     }
                     go.transform.position = Vector3.Lerp(go.transform.position, kv.Value.Target, Mathf.Clamp01(Time.deltaTime * 15f));
-                    DrawLayers(go, kv.Value.State);
+                    DrawLayers(go, kv.Value);
                 }
             }
             var gone = new List<ushort>();
@@ -350,8 +372,9 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
-        private static void DrawLayers(GameObject go, EntityState st)
+        private static void DrawLayers(GameObject go, Remote remote)
         {
+            var st = remote.State;
             var like = HeroMerchant.Instance != null ? HeroMerchant.Instance.GetComponentInChildren<SpriteRenderer>() : null;
             foreach (var layer in st.Layers)
             {
@@ -365,7 +388,7 @@ namespace Coop.Plugin.Dungeon
                     if (like != null) { nr.sortingLayerID = like.sortingLayerID; nr.sharedMaterial = like.sharedMaterial; }
                 }
                 var r = child.GetComponent<SpriteRenderer>();
-                var sprite = layer.Visible ? Resolve(Names.GetKey(layer.SpriteId)) : null;
+                var sprite = layer.Visible ? Resolve(NamesOf(remote.From).GetKey(layer.SpriteId)) : null;
                 r.enabled = sprite != null;
                 if (sprite == null) continue;
                 r.sprite = sprite;

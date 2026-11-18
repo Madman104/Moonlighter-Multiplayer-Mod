@@ -1,15 +1,19 @@
 using System;
+using System.Collections.Generic;
 using Coop.Core.Protocol;
 using Coop.Core.Session;
 using Coop.Plugin.TestMode;
 
 namespace Coop.Plugin.Runtime
 {
-    /// <summary>Both players' display names: the Steam name, sent to the partner on connect.</summary>
+    /// <summary>Every player's display name (Steam name), by player number (host 0, guests 1..3).</summary>
     internal static class PlayerNames
     {
-        /// <summary>The partner's name; "P1"/"P2" until it arrives.</summary>
-        public static string Partner { get; private set; } = "P2";
+        private static readonly Dictionary<int, string> Names = new Dictionary<int, string>();
+
+        /// <summary>A player's name; "P1".."P4" until it arrives.</summary>
+        public static string Name(int player)
+            => Names.TryGetValue(player, out var n) ? n : "P" + (player + 1);
 
         public static string Local()
         {
@@ -22,16 +26,22 @@ namespace Coop.Plugin.Runtime
             return TestClientMode.Active ? "Test client" : "Player";
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink link)
         {
-            Partner = session.IsHost ? "P2" : "P1";
-            session.StateChanged += st =>
+            Names.Clear();
+            // Guest: tell everyone once connected (the host forwards it). Host: tell each newcomer.
+            link.StateChanged += st =>
             {
-                if (st == SessionState.Connected) session.SendGame(MessageType.PlayerName, new PlayerName { Name = Local() });
+                if (st == SessionState.Connected && !link.IsHost) link.SendGame(MessageType.PlayerName, new PlayerName { Name = Local() });
             };
-            session.GameMessageReceived += (type, msg) =>
+            link.PeerJoined += i =>
             {
-                if (type == MessageType.PlayerName) Partner = PlayerName.Clean(((PlayerName)msg).Name);
+                if (link.IsHost) link.SendGameTo(i, MessageType.PlayerName, new PlayerName { Name = Local() });
+            };
+            link.PeerLeft += i => Names.Remove(i);
+            link.GameMessageReceived += (type, msg) =>
+            {
+                if (type == MessageType.PlayerName) Names[link.LastFrom] = PlayerName.Clean(((PlayerName)msg).Name);
             };
         }
     }

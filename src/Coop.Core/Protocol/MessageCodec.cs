@@ -83,10 +83,12 @@ namespace Coop.Core.Protocol
                         break;
                     case MessageType.EnemyOwners:
                         var eo = (EnemyOwners)msg;
-                        var owned = eo.GuestOwned ?? new ushort[0];
+                        var ids = eo.Ids ?? new ushort[0];
+                        var owners = eo.Owners ?? new byte[0];
+                        int count = Math.Min(Math.Min(ids.Length, owners.Length), ushort.MaxValue);
                         w.Write(eo.Key);
-                        w.Write((ushort)Math.Min(owned.Length, ushort.MaxValue));
-                        for (int i = 0; i < Math.Min(owned.Length, ushort.MaxValue); i++) w.Write(owned[i]);
+                        w.Write((ushort)count);
+                        for (int i = 0; i < count; i++) { w.Write(ids[i]); w.Write(owners[i]); }
                         break;
                     case MessageType.WorldSlot:
                     case MessageType.ShopState:
@@ -219,8 +221,10 @@ namespace Coop.Core.Protocol
                         case MessageType.EnemyOwners:
                         {
                             var eo = new EnemyOwners { Key = rd.ReadInt32() };
-                            eo.GuestOwned = new ushort[rd.ReadUInt16()];
-                            for (int i = 0; i < eo.GuestOwned.Length; i++) eo.GuestOwned[i] = rd.ReadUInt16();
+                            int count = rd.ReadUInt16();
+                            eo.Ids = new ushort[count];
+                            eo.Owners = new byte[count];
+                            for (int i = 0; i < count; i++) { eo.Ids[i] = rd.ReadUInt16(); eo.Owners[i] = rd.ReadByte(); }
                             return (type, eo);
                         }
                         case MessageType.WorldSlot:

@@ -22,7 +22,8 @@ namespace Coop.Plugin.Steam
         private readonly CallResult<LobbyCreated_t> _created = CallResult<LobbyCreated_t>.Create();
 
         private CSteamID _lobby = CSteamID.Nil;
-        private SteamP2PTransport _transport;
+        private SteamP2PTransport _transport;     // guest: link to the host
+        private SteamHostListener _hostListener;  // host: one link per guest
 
         public static bool Available => SteamManager.Instance != null && SteamManager.Instance.Initialized;
 
@@ -54,8 +55,7 @@ namespace Coop.Plugin.Steam
         public static void HostNow() => _instance?.Host();
 
         /// <summary>True while this player hosts an open Steam lobby.</summary>
-        public static bool Hosting => _instance != null && _instance._lobby != CSteamID.Nil
-            && _instance._transport != null && _instance._transport.IsHost;
+        public static bool Hosting => _instance != null && _instance._lobby != CSteamID.Nil && _instance._hostListener != null;
 
         /// <summary>Opens Steam's invite window for the open lobby again.</summary>
         public static void OpenInvite()
@@ -73,7 +73,7 @@ namespace Coop.Plugin.Steam
         {
             CoopManager.Instance.Leave();
             LeaveLobby();
-            var call = SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, 2);
+            var call = SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, Coop.Core.Session.CoopLink.MaxPlayers);
             _created.Set(call, OnLobbyCreated);
             CoopPlugin.Log.LogInfo("Creating Steam lobby...");
         }
@@ -89,8 +89,10 @@ namespace Coop.Plugin.Steam
             SteamMatchmaking.SetLobbyData(_lobby, VersionKey, CoopPlugin.ModVersion);
             CoopPlugin.Log.LogInfo("Lobby created " + result.m_ulSteamIDLobby);
 
-            _transport = new SteamP2PTransport(isHost: true);
-            CoopManager.Instance.StartWith(_transport, "Steam lobby open. Invite a friend from the Steam overlay.");
+            _hostListener = new SteamHostListener();
+            var lobby = _lobby;
+            _hostListener.Closed += () => { if (_lobby == lobby) LeaveLobby(); };
+            CoopManager.Instance.StartHost(_hostListener, "Steam lobby open. Invite up to 3 friends from the Steam overlay.");
             SteamFriends.ActivateGameOverlayInviteDialog(_lobby);
         }
 
@@ -121,18 +123,20 @@ namespace Coop.Plugin.Steam
 
         private void OnChatUpdate(LobbyChatUpdate_t u)
         {
-            if (_transport == null || u.m_ulSteamIDLobby != _lobby.m_SteamID) return;
+            if (u.m_ulSteamIDLobby != _lobby.m_SteamID) return;
             var who = new CSteamID(u.m_ulSteamIDUserChanged);
             if (who == SteamUser.GetSteamID()) return;
 
             const uint entered = (uint)EChatMemberStateChange.k_EChatMemberStateChangeEntered;
-            if ((u.m_rgfChatMemberStateChange & entered) != 0)
+            bool joined = (u.m_rgfChatMemberStateChange & entered) != 0;
+            if (_hostListener != null)
             {
-                if (_transport.IsHost) _transport.SetRemote(who);
+                if (joined) _hostListener.Joined(who);
+                else _hostListener.Left(who, "Player left the Steam lobby");
             }
-            else if (who == _transport.Remote)
+            else if (_transport != null && !joined && who == _transport.Remote)
             {
-                _transport.NotifyRemoteLeft("Other player left the Steam lobby");
+                _transport.NotifyRemoteLeft("The host left the Steam lobby");
             }
         }
 
@@ -141,6 +145,7 @@ namespace Coop.Plugin.Steam
             if (_lobby != CSteamID.Nil) SteamMatchmaking.LeaveLobby(_lobby);
             _lobby = CSteamID.Nil;
             _transport = null;
+            _hostListener = null;
         }
     }
 }

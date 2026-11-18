@@ -39,7 +39,7 @@ namespace Coop.Plugin.Dungeon
                 prefix: new HarmonyMethod(typeof(TravelSync), nameof(SpecialChangeRoomPrefix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             _roomArbiter = new TravelArbiter(session.IsHost);
             _pendingCulture = _pendingLevel = -1;
@@ -54,7 +54,7 @@ namespace Coop.Plugin.Dungeon
 
         private static float Now => Time.realtimeSinceStartup;
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected && _roomArbiter != null;
@@ -118,14 +118,14 @@ namespace Coop.Plugin.Dungeon
         }
 
         // Host: if in a shared dungeon, send the trip and the current floor again.
-        private static void AnswerCatchUp(PeerSession s)
+        private static void AnswerCatchUp(CoopLink s, int guest)
         {
             var gm = GameManager.Instance;
             var dm = DungeonManager.Instance;
             if (gm == null || !gm.IsDungeonSceneLoaded() || dm == null || !SharedCultures.Contains(dm.culture)) return;
             CoopPlugin.Log.LogInfo($"Partner joined late: sending {dm.culture} floor {dm.level} again");
-            s.SendGame(MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)dm.culture, Level = (byte)dm.level, Replay = false });
-            FloorSync.SendCurrentFloor(s);
+            s.SendGameTo(guest, MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)dm.culture, Level = (byte)dm.level, Replay = false });
+            FloorSync.SendCurrentFloor(s, guest);
         }
 
         private static bool HasEmblemPortal(GameManager gm)
@@ -208,7 +208,7 @@ namespace Coop.Plugin.Dungeon
         {
             if (type == MessageType.CatchUp)
             {
-                if (Connected(out var cs) && cs.IsHost) AnswerCatchUp(cs);
+                if (Connected(out var cs) && cs.IsHost) AnswerCatchUp(cs, cs.LastFrom);
                 return;
             }
             if (type == MessageType.EmblemReturn)

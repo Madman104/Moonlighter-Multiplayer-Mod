@@ -34,5 +34,30 @@ namespace Coop.Core.Tests.Dungeon
             Assert.NotEqual(EnemyOwnership.RoomKey(1, 2, false), EnemyOwnership.RoomKey(1, 2, true));
             Assert.NotEqual(EnemyOwnership.RoomKey(-1, 0, false), EnemyOwnership.RoomKey(0, -1, false));
         }
+
+        [Fact]
+        public void Nearest_of_four_takes_over_past_the_margin()
+        {
+            // current owner 0 at 100, player 2 at 10 -> 2 takes it
+            var d = new[] { 100f * 100f, 80f * 80f, 10f * 10f, float.PositiveInfinity };
+            Assert.Equal(2, EnemyOwnership.Owner(0, d, 24f));
+            // current owner 1 at 40, player 2 at 30 (only 10 closer) -> 1 keeps it
+            d = new[] { 100f * 100f, 40f * 40f, 30f * 30f, float.PositiveInfinity };
+            Assert.Equal(1, EnemyOwnership.Owner(1, d, 24f));
+        }
+
+        [Fact]
+        public void Owner_who_left_is_replaced_by_the_nearest()
+        {
+            var d = new[] { 50f * 50f, float.PositiveInfinity, 20f * 20f, 90f * 90f };
+            Assert.Equal(2, EnemyOwnership.Owner(1, d, 24f));
+        }
+
+        [Fact]
+        public void Nobody_in_the_room_means_the_host_runs_it()
+        {
+            var d = new[] { float.PositiveInfinity, float.PositiveInfinity };
+            Assert.Equal(0, EnemyOwnership.Owner(1, d, 24f));
+        }
     }
 }

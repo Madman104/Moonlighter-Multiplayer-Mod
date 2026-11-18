@@ -28,17 +28,19 @@ namespace Coop.Plugin.Shared
         /// <summary>Guest: currently playing in the host's world.</summary>
         public static bool InHostWorld { get; private set; }
 
-        private static bool _sendPending;
+        private static readonly System.Collections.Generic.HashSet<int> SendTo = new System.Collections.Generic.HashSet<int>();
         private static bool _toldWaiting;
         private static string _pendingJson;
         private static float _menuSince = -1f;
         private static bool _toldPressKey;
         private static float _menuRequestedAt;
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             _pendingJson = null;
-            _sendPending = session.IsHost;
+            SendTo.Clear();
+            session.PeerJoined += i => { if (session.IsHost) { SendTo.Add(i); _toldWaiting = false; } };
+            session.PeerLeft += i => SendTo.Remove(i);
             _toldWaiting = false;
             session.GameMessageReceived += (type, msg) =>
             {
@@ -58,7 +60,7 @@ namespace Coop.Plugin.Shared
             };
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -73,9 +75,9 @@ namespace Coop.Plugin.Shared
 
         // ---- host ----
 
-        private static void HostTick(PeerSession s)
+        private static void HostTick(CoopLink s)
         {
-            if (!_sendPending) return;
+            if (SendTo.Count == 0) return;
             var gm = GameManager.Instance;
             if (gm == null || HeroMerchant.Instance == null || gm.currentGameSlot == null) return;
             if (!gm.IsTownSceneLoaded() || gm.IsDungeonSceneLoaded())
@@ -87,12 +89,13 @@ namespace Coop.Plugin.Shared
                 }
                 return;
             }
-            _sendPending = false;
-            SendWorld(s, gm);
+            var targets = new System.Collections.Generic.List<int>(SendTo);
+            SendTo.Clear();
+            SendWorld(s, gm, targets);
         }
 
         /// <summary>Host: refresh the slot from the live game (as entering a dungeon does) and send it.</summary>
-        private static void SendWorld(PeerSession s, GameManager gm)
+        private static void SendWorld(CoopLink s, GameManager gm, System.Collections.Generic.List<int> targets)
         {
             try
             {
@@ -101,7 +104,7 @@ namespace Coop.Plugin.Shared
                 FsJSONManager.Serialize(gm.currentGameSlot, out fsData data);
                 string json = data.ToString();
                 var packed = PackedText.Pack(json);
-                s.SendGame(MessageType.WorldSlot, new WorldSlot { Data = packed });
+                foreach (var t in targets) s.SendGameTo(t, MessageType.WorldSlot, new WorldSlot { Data = packed });
                 CoopPlugin.Log.LogInfo($"Sent the world to the partner ({json.Length} chars, {packed.Length} bytes packed)");
             }
             catch (Exception e)

@@ -6,8 +6,44 @@ using Steamworks;
 namespace Coop.Plugin.Steam
 {
     /// <summary>
-    /// Transport over Steam's P2P networking. Steam relays the traffic when a direct
-    /// connection isn't possible, so nobody needs to forward ports.
+    /// Reads Steam's P2P packets once per frame and hands each to the transport of the player
+    /// who sent it. (Steam has one incoming queue for everyone, so with several guests each
+    /// transport must not read it by itself.)
+    /// </summary>
+    internal static class SteamP2PRouter
+    {
+        private const int Channel = 0;
+        private static readonly Dictionary<CSteamID, SteamP2PTransport> Routes = new Dictionary<CSteamID, SteamP2PTransport>();
+        private static int _lastFrame = -1;
+
+        public static void Register(CSteamID who, SteamP2PTransport t) => Routes[who] = t;
+
+        public static void Unregister(CSteamID who, SteamP2PTransport t)
+        {
+            if (Routes.TryGetValue(who, out var cur) && cur == t) Routes.Remove(who);
+        }
+
+        public static bool Knows(CSteamID who) => Routes.ContainsKey(who);
+
+        /// <summary>Called by every transport's Poll; only the first call per frame reads.</summary>
+        public static void Pump()
+        {
+            int frame = UnityEngine.Time.frameCount;
+            if (frame == _lastFrame) return;
+            _lastFrame = frame;
+            while (SteamNetworking.IsP2PPacketAvailable(out uint size, Channel))
+            {
+                var buf = new byte[size];
+                if (!SteamNetworking.ReadP2PPacket(buf, size, out uint read, out CSteamID from, Channel)) break;
+                if (read != size) Array.Resize(ref buf, (int)read);
+                if (Routes.TryGetValue(from, out var t)) t.Deliver(buf); // anyone else is ignored
+            }
+        }
+    }
+
+    /// <summary>
+    /// Transport to one other player over Steam's P2P networking. Steam relays the traffic when
+    /// a direct connection isn't possible, so nobody needs to forward ports.
     /// Each Steam packet is one message, so no framing is needed.
     /// </summary>
     internal sealed class SteamP2PTransport : ITransport
@@ -42,6 +78,7 @@ namespace Coop.Plugin.Steam
         {
             if (_closed || _remote != CSteamID.Nil) return;
             _remote = remote;
+            SteamP2PRouter.Register(remote, this);
             SteamNetworking.AcceptP2PSessionWithUser(remote);
             _pendingConnected = true;
         }
@@ -51,6 +88,11 @@ namespace Coop.Plugin.Steam
         {
             if (_closed) return;
             _pendingDisconnect = reason;
+        }
+
+        internal void Deliver(byte[] packet)
+        {
+            if (!_closed) _inbox.Enqueue(packet);
         }
 
         public void Send(byte[] payload, bool reliable)
@@ -77,16 +119,7 @@ namespace Coop.Plugin.Steam
         {
             if (_closed) return;
             if (_pendingConnected) { _pendingConnected = false; Connected?.Invoke(); }
-
-            while (SteamNetworking.IsP2PPacketAvailable(out uint size, Channel))
-            {
-                var buf = new byte[size];
-                if (!SteamNetworking.ReadP2PPacket(buf, size, out uint read, out CSteamID from, Channel)) break;
-                if (from != _remote) continue; // ignore anyone who isn't our partner
-                if (read != size) Array.Resize(ref buf, (int)read);
-                _inbox.Enqueue(buf);
-            }
-
+            SteamP2PRouter.Pump();
             if (_pendingDisconnect != null)
             {
                 var r = _pendingDisconnect;
@@ -112,7 +145,11 @@ namespace Coop.Plugin.Steam
         {
             if (_closed) return;
             _closed = true;
-            if (_remote != CSteamID.Nil) SteamNetworking.CloseP2PSessionWithUser(_remote);
+            if (_remote != CSteamID.Nil)
+            {
+                SteamP2PRouter.Unregister(_remote, this);
+                SteamNetworking.CloseP2PSessionWithUser(_remote);
+            }
             _sessionRequest?.Dispose();
             _connectFail?.Dispose();
             _sessionRequest = null;
@@ -120,5 +157,48 @@ namespace Coop.Plugin.Steam
         }
 
         public void Dispose() => Close();
+    }
+
+    /// <summary>Host: one transport per player who joins the Steam lobby (up to three).</summary>
+    internal sealed class SteamHostListener : IGuestListener
+    {
+        private readonly Queue<ITransport> _pending = new Queue<ITransport>();
+        private readonly Dictionary<CSteamID, SteamP2PTransport> _guests = new Dictionary<CSteamID, SteamP2PTransport>();
+        private bool _closed;
+
+        public event Action Closed;
+
+        public void Joined(CSteamID who)
+        {
+            if (_closed || (_guests.TryGetValue(who, out var old) && old != null && SteamP2PRouter.Knows(who))) return;
+            var t = new SteamP2PTransport(isHost: true);
+            t.SetRemote(who);
+            _guests[who] = t;
+            _pending.Enqueue(t);
+        }
+
+        public void Left(CSteamID who, string reason)
+        {
+            if (_guests.TryGetValue(who, out var t)) t.NotifyRemoteLeft(reason);
+            _guests.Remove(who);
+        }
+
+        public void Poll() => SteamP2PRouter.Pump();
+
+        public bool TryAccept(out ITransport transport)
+        {
+            if (_pending.Count > 0) { transport = _pending.Dequeue(); return true; }
+            transport = null;
+            return false;
+        }
+
+        public void Dispose()
+        {
+            if (_closed) return;
+            _closed = true;
+            foreach (var t in _guests.Values) t.Dispose();
+            _guests.Clear();
+            Closed?.Invoke();
+        }
     }
 }

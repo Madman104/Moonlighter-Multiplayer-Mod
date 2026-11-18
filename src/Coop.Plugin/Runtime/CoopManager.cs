@@ -15,25 +15,16 @@ namespace Coop.Plugin.Runtime
     /// </summary>
     internal sealed class CoopManager : MonoBehaviour
     {
-        /// <summary>
-        /// After the session closes on its own (reject, timeout), the link stays open this long
-        /// so the last reliable message (e.g. the reject reason) still reaches the other side.
-        /// </summary>
-        public const float LingerSeconds = 1f;
 
         public static CoopManager Instance { get; private set; }
 
-        public PeerSession Session { get; private set; }
+        public CoopLink Session { get; private set; }
         public string Status { get; private set; } = "Not connected";
         public bool IsActive => Session != null && Session.State != SessionState.Closed;
 
         public event Action SessionStarted;
         public event Action<string> SessionClosed;
 
-        private ITransport _transport;
-        private ITransport _lingering;
-        private float _lingerUntil;
-        private string _lingerReason;
         private bool _autoArgsHandled;
 
         public static void Create()
@@ -69,10 +60,10 @@ namespace Coop.Plugin.Runtime
         public void HostTcp(int port)
         {
             Leave();
-            TcpTransport t;
+            TcpGuestListener l;
             try
             {
-                t = TcpTransport.Host(port);
+                l = new TcpGuestListener(port);
             }
             catch (SocketException e)
             {
@@ -80,9 +71,8 @@ namespace Coop.Plugin.Runtime
                 CoopPlugin.Log.LogWarning(Status);
                 return;
             }
-            // Same-PC test connections share this install, so their DLC matches by definition.
-            t.Connected += () => { if (Session != null) Session.IgnoreDlc = t.RemoteIsLoopback; };
-            Begin(t, $"Hosting on port {port}, waiting for the other player...");
+            StartHost(l, $"Hosting on port {port}, waiting for players (up to {CoopLink.MaxPlayers - 1} can join)...",
+                t => t is TcpTransport tcp && tcp.RemoteIsLoopback); // same-PC tests share this install's DLC
         }
 
         public void JoinTcp(string address, int port)
@@ -99,25 +89,39 @@ namespace Coop.Plugin.Runtime
                 CoopPlugin.Log.LogWarning(Status);
                 return;
             }
-            Begin(t, $"Connecting to {address}:{port}...");
+            Begin(CoopLink.Guest(t, BuildHello(), TestClientMode.Active, () => Time.realtimeSinceStartup), $"Connecting to {address}:{port}...");
         }
 
-        public void StartWith(ITransport transport, string status) => Begin(transport, status);
+        /// <summary>Join as a guest over an existing transport (Steam).</summary>
+        public void StartWith(ITransport transport, string status)
+            => Begin(CoopLink.Guest(transport, BuildHello(), TestClientMode.Active, () => Time.realtimeSinceStartup), status);
 
-        /// <summary>Leave on purpose: tell the other player and close at once.</summary>
+        /// <summary>Host for up to three guests arriving through the listener (Steam or TCP).</summary>
+        public void StartHost(IGuestListener listener, string status, Func<ITransport, bool> ignoreDlcFor = null)
+        {
+            var link = CoopLink.Host(listener, BuildHello(), TestClientMode.Active, () => Time.realtimeSinceStartup);
+            link.IgnoreDlcFor = ignoreDlcFor;
+            Begin(link, status);
+        }
+
+        /// <summary>Leave on purpose (guest) or stop hosting (host): tell the others and close.</summary>
         public void Leave()
         {
             if (Session != null && Session.State != SessionState.Closed)
                 Session.Close("You left");
-            DisposeTransport(ref _transport);
-            FinishLinger();
         }
 
-        private void Begin(ITransport transport, string status)
+        private void Begin(CoopLink link, string status)
         {
-            _transport = transport;
-            Session = new PeerSession(transport, BuildHello(), TestClientMode.Active, () => Time.realtimeSinceStartup);
+            Session = link;
             Session.StateChanged += OnStateChanged;
+            Session.PeerJoined += i => { Status = $"{Session.PeerCount + 1} players"; CoopPlugin.Log.LogInfo($"Co-op: player {i + 1} joined"); };
+            Session.PeerLeft += i =>
+            {
+                Status = Session.PeerCount > 0 ? $"{Session.PeerCount + 1} players" : "Hosting, waiting for players...";
+                CoopPlugin.Log.LogInfo($"Co-op: player {i + 1} left");
+                CoopToast.Show(PlayerNames.Name(i) + " left");
+            };
             Status = status;
             CoopPlugin.Log.LogInfo(status);
             PlayerNames.Attach(Session);
@@ -146,43 +150,18 @@ namespace Coop.Plugin.Runtime
             switch (state)
             {
                 case SessionState.Handshaking:
-                    Status = "Checking versions...";
+                    Status = Session.IsHost ? "Hosting, waiting for players..." : "Checking versions...";
                     break;
                 case SessionState.Connected:
-                    Status = Session.IsHost ? "Connected (you are the host)" : "Connected (you joined)";
+                    Status = Session.IsHost ? $"{Session.PeerCount + 1} players (you are the host)" : "Connected (you joined)";
                     if (!Session.IsHost) Shared.SaveGuard.MarkGuest();
                     break;
                 case SessionState.Closed:
                     Status = "Closed: " + Session.CloseReason;
+                    SessionClosed?.Invoke(Session.CloseReason);
                     break;
             }
             CoopPlugin.Log.LogInfo("Co-op: " + Status);
-            if (state == SessionState.Closed)
-            {
-                // Keep the link open briefly so a final Reject/Bye is delivered, then clean up.
-                FinishLinger();
-                _lingering = _transport;
-                _transport = null;
-                _lingerUntil = Time.realtimeSinceStartup + LingerSeconds;
-                _lingerReason = Session.CloseReason;
-            }
-        }
-
-        private void FinishLinger()
-        {
-            if (_lingerReason == null && _lingering == null) return;
-            DisposeTransport(ref _lingering);
-            var reason = _lingerReason;
-            _lingerReason = null;
-            if (reason != null) SessionClosed?.Invoke(reason);
-        }
-
-        private static void DisposeTransport(ref ITransport t)
-        {
-            if (t == null) return;
-            try { t.Dispose(); }
-            catch (Exception e) { CoopPlugin.Log.LogWarning("Transport dispose failed: " + e.Message); }
-            t = null;
         }
 
         private void Update()
@@ -198,13 +177,7 @@ namespace Coop.Plugin.Runtime
             Shared.ShopSync.Tick();
             Shared.CitizenMirror.Tick();
 
-            if (_lingering != null || _lingerReason != null)
-            {
-                try { _lingering?.Poll(); } catch (Exception) { /* closing anyway */ }
-                if (Time.realtimeSinceStartup >= _lingerUntil) FinishLinger();
-            }
-
-            if (Session == null || _transport == null) return;
+            if (Session == null) return;
             try
             {
                 Session.Tick();
@@ -212,8 +185,7 @@ namespace Coop.Plugin.Runtime
             catch (Exception e)
             {
                 CoopPlugin.Log.LogError("Co-op session error: " + e);
-                try { Session.Close("Error: " + e.Message); }
-                catch (Exception) { DisposeTransport(ref _transport); }
+                try { Session.Close("Error: " + e.Message); } catch (Exception) { }
             }
         }
 

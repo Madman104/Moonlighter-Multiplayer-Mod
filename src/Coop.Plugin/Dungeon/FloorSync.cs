@@ -47,7 +47,7 @@ namespace Coop.Plugin.Dungeon
         private static bool RevealPrefix() => !(ClientBuilding && Connected(out var s) && !s.IsHost);
 
         /// <summary>Called when a co-op session starts.</summary>
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             NewTravel();
             session.GameMessageReceived += OnGameMessage;
@@ -68,7 +68,7 @@ namespace Coop.Plugin.Dungeon
             ClientBuilding = false;
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -112,14 +112,15 @@ namespace Coop.Plugin.Dungeon
         /// Host: a guest finished loading after the host had already gone into a dungeon. Send
         /// the floor as it is now, starting in the host's room (cleared rooms stay cleared).
         /// </summary>
-        public static void SendCurrentFloor(PeerSession s)
+        public static void SendCurrentFloor(CoopLink s, int guest)
         {
             var dm = DungeonManager.Instance;
             if (dm == null || !IsSharedCulture(dm.culture) || dm.currentDungeonRoom == null) return;
-            SendLayout(s, dm, dm.currentDungeonRoom);
+            SendLayout(s, dm, dm.currentDungeonRoom, guest);
         }
 
-        private static void SendLayout(PeerSession s, DungeonManager dm, DungeonRoom startRoom)
+        /// <summary>to = -1: every guest.</summary>
+        private static void SendLayout(CoopLink s, DungeonManager dm, DungeonRoom startRoom, int to = -1)
         {
             try
             {
@@ -135,7 +136,9 @@ namespace Coop.Plugin.Dungeon
                 }
                 FsJSONManager.Serialize(info, out fsData data);
                 var json = data.ToString();
-                s.SendGame(MessageType.FloorLayout, new FloorLayout { Culture = (byte)info.culture, Floor = (byte)info.floor, Json = json });
+                var layout = new FloorLayout { Culture = (byte)info.culture, Floor = (byte)info.floor, Json = json };
+                if (to >= 0) s.SendGameTo(to, MessageType.FloorLayout, layout);
+                else s.SendGame(MessageType.FloorLayout, layout);
                 CoopPlugin.Log.LogInfo($"Sent floor layout {info.culture} {info.floor} ({json.Length} chars, {info.rooms.Count} rooms)");
             }
             catch (Exception e)

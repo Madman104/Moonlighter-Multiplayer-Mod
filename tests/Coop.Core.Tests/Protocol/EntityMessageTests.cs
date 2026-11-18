@@ -44,11 +44,12 @@ namespace Coop.Core.Tests.Protocol
         public void EnemyOwners_round_trip()
         {
             var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.EnemyOwners,
-                new EnemyOwners { Key = 42, GuestOwned = new ushort[] { 1, 5, 300 } }));
+                new EnemyOwners { Key = 42, Ids = new ushort[] { 1, 5, 300 }, Owners = new byte[] { 1, 3, 2 } }));
             Assert.Equal(MessageType.EnemyOwners, t);
             var o = Assert.IsType<EnemyOwners>(m);
             Assert.Equal(42, o.Key);
-            Assert.Equal(new ushort[] { 1, 5, 300 }, o.GuestOwned);
+            Assert.Equal(new ushort[] { 1, 5, 300 }, o.Ids);
+            Assert.Equal(new byte[] { 1, 3, 2 }, o.Owners);
         }
 
         [Fact]

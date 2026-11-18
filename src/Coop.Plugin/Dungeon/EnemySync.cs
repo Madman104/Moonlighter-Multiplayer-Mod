@@ -46,12 +46,12 @@ namespace Coop.Plugin.Dungeon
                 postfix: new HarmonyMethod(typeof(EnemySync), nameof(HealthPostfix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             session.GameMessageReceived += OnGameMessage;
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;

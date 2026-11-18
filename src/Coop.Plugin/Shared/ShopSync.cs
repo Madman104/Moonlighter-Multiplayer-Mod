@@ -63,7 +63,7 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(ShopSync), nameof(CashBlockedPrefix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             Base.Clear();
             PendingRemote.Clear();
@@ -77,7 +77,7 @@ namespace Coop.Plugin.Shared
             session.GameMessageReceived += OnGameMessage;
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -237,7 +237,7 @@ namespace Coop.Plugin.Shared
             if (changed.keys.Count > 0) Send(s, changed);
         }
 
-        private static void Send(PeerSession s, ShopSnapshot snap)
+        private static void Send(CoopLink s, ShopSnapshot snap)
         {
             try
             {
@@ -336,7 +336,7 @@ namespace Coop.Plugin.Shared
 
         // ---- customers drawn on the guest ----
 
-        private static void SendVisitors(PeerSession s, ShopReferences refs)
+        private static void SendVisitors(CoopLink s, ShopReferences refs)
         {
             var gen = ShopManager.Instance.visitorGenerator;
             var list = gen != null ? gen.generatedVisitors : null;
@@ -364,7 +364,7 @@ namespace Coop.Plugin.Shared
             });
         }
 
-        private static EntityState Describe(PeerSession s, Agent agent, ushort id)
+        private static EntityState Describe(CoopLink s, Agent agent, ushort id)
         {
             var root = agent.transform;
             var renderers = agent.GetComponentsInChildren<SpriteRenderer>(false);

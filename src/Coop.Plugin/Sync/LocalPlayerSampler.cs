@@ -44,7 +44,7 @@ namespace Coop.Plugin.Sync
             _tick = 0;
         }
 
-        public void Update(PeerSession session)
+        public void Update(CoopLink session)
         {
             if (session == null || session.State != SessionState.Connected) return;
             float now = Time.realtimeSinceStartup;

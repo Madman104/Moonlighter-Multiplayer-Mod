@@ -28,11 +28,11 @@ namespace Coop.Plugin.Sync
         private static float _nextCacheRefresh;
         private static readonly HashSet<string> Missing = new HashSet<string>();
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             Clear();
             Names.Clear();
-            session.SpriteDefReceived += def => { if (def.Id >= Shared.ShopSync.VisitorSpriteBase) Names.Define(def.Id, def.Key); };
+            session.SpriteDefReceived += def => { if (session.LastFrom == 0 && def.Id >= Shared.ShopSync.VisitorSpriteBase) Names.Define(def.Id, def.Key); };
             session.StateChanged += st => { if (st == SessionState.Closed) Clear(); };
         }
 
