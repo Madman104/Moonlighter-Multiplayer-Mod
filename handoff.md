@@ -25,6 +25,18 @@
 | Disconnect | Host gone → guest's bag saved, guest to main menu (a ghost guest just stops being a ghost). Guest gone → host plays on; paused enemies resume | Not played |
 | Controller | All co-op menus are the game's own buttons with explicit up/down links. Steam invites through the overlay. INVITE FRIEND reopens the invite window | Keyboard navigation of the main menu entry tested by you |
 
+## 1.1.0 — up to 4 players (branch `feat/four-players`, not merged)
+- **CoopLink** (Core, tested): the host keeps one session per guest (up to 3). Everything a guest sends is forwarded to the other guests, tagged with the sender's player number. Host 0, guests 1–3.
+- **Steam:** the lobby holds 4. One shared packet reader hands packets out by sender. **IP:** the host accepts up to 3 connections.
+- **Per player:**
+  - names and puppets;
+  - enemies are run by the nearest of all players in the same room;
+  - ghost rules: ghost while anyone else is alive, a pool revives every ghost, real death when nobody is left;
+  - world and catch-up go to the one guest who joined;
+  - when the host's partner leaves, the host keeps hosting for the others.
+- **Names over heads** are coloured by health (green → yellow → red, grey = ghost); the separate health bar is gone (that change is on `main` too).
+- **Not tested at all, not even launched** (you said you'd test). Before merging into `main`, test with 2, then 3 players. Watch for: everyone in the same room, gold matching, enemy positions, a guest leaving mid-dungeon.
+
 ## 1.0.2 (after your first test with a friend)
 - **Fixed: a joining player couldn't get into the dungeon.** If you went into the dungeon while your friend was still loading your world, their game missed the trip and stayed in town. Now their game asks for a catch-up once it arrives, and yours re-sends the trip and the current floor, starting in your room.
 - **Partner health bar** is below your gold (it overlapped the bag icon) and shows numbers.

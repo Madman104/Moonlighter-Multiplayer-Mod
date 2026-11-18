@@ -1,7 +1,7 @@
 # Moonlighter Co-op — player guide
 
-Two-player online co-op for Moonlighter 1.15.8 (Steam). One player hosts; the other joins
-and plays in the host's world.
+Online co-op for Moonlighter 1.15.8 (Steam), for **up to 4 players**. One player hosts; the others join
+and play in the host's world.
 
 ## Install (both players)
 1. Install **BepInEx 5** (5.4.x, x64) into your Moonlighter folder (the folder with `Moonlighter.exe`), and start the game once.
@@ -36,14 +36,14 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
   - Customers come into the host's game; the guest sees them and can sell to them.
 - **Emblem portal:** the host's portal is the shared one. The guest's portal asks the host to go through theirs.
 
-Your partner's name (their Steam name) shows above their Will. Its colour shows their health: green when full, yellow at half, red when low, grey for a ghost.
+Every other player's name (their Steam name) shows above their Will. Its colour shows their health: green when full, yellow at half, red when low, grey for a ghost.
 
 ## Dying, ghosts and revives
-- **Dying while your partner is alive** turns you into a **ghost**. A ghost:
+- **Dying while anyone else is alive** turns you into a **ghost**. A ghost:
   - drops their bag (except safe slots) where they fell;
   - can't be hurt, attack, pick up items or drink potions.
-- **To revive:** your partner uses a **healing pool**. You come back at half health, and that pool is used up for both of you. Walk back to your items and pick them up.
-- **If both of you go down,** it's a normal death with the normal penalty.
+- **To revive:** a living player uses a **healing pool**. Every ghost comes back at half health, and that pool is used up for everyone. Walk back to your items and pick them up.
+- **If nobody is left alive,** it's a normal death with the normal penalty.
 
 ## Saves
 - The **host's** save is the shared world and is saved as usual.
@@ -51,7 +51,7 @@ Your partner's name (their Steam name) shows above their Will. Its colour shows 
 - If the host disconnects, the guest's bag is saved and they go back to the main menu.
 
 ## Known limits
-- Each enemy is run by the game of the closer player, so it only attacks that player. Its projectiles only show on that player's screen.
+- Each enemy is run by the game of the nearest player, so it only attacks that player. Its projectiles only show on that player's screen.
 - If both players change the same showcase or chest slot at the same moment, the last change wins.
 - Town upgrades the host buys during a session appear for the guest next time they join.
 - Wanderer DLC dungeons: you travel together, but enemies there aren't shared.

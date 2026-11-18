@@ -175,11 +175,12 @@ namespace Coop.Core.Protocol
 
 namespace Coop.Core.Protocol
 {
-    /// <summary>Host → guest: in this room, which enemies the guest's game runs (all others: host's).</summary>
+    /// <summary>Host → guests: in this room, which player's game runs which enemy (unlisted: host's).</summary>
     public sealed class EnemyOwners
     {
         public int Key;
-        public ushort[] GuestOwned = new ushort[0];
+        public ushort[] Ids = new ushort[0];
+        public byte[] Owners = new byte[0];
     }
 }
 
@@ -198,5 +199,15 @@ namespace Coop.Core.Protocol
             if (s.Length == 0) return "Player";
             return s.Length > MaxLength ? s.Substring(0, MaxLength) : s;
         }
+    }
+}
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>Host → guest: a message another player sent, forwarded with its sender's number.</summary>
+    public sealed class Relay
+    {
+        public byte From;
+        public byte[] Inner = new byte[0];
     }
 }

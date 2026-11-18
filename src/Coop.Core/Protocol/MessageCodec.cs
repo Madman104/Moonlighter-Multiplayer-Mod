@@ -75,12 +75,20 @@ namespace Coop.Core.Protocol
                     case MessageType.PlayerName:
                         w.Write(((PlayerName)msg).Name ?? "");
                         break;
+                    case MessageType.Relay:
+                        var rl = (Relay)msg;
+                        w.Write(rl.From);
+                        w.Write((rl.Inner ?? new byte[0]).Length);
+                        w.Write(rl.Inner ?? new byte[0]);
+                        break;
                     case MessageType.EnemyOwners:
                         var eo = (EnemyOwners)msg;
-                        var owned = eo.GuestOwned ?? new ushort[0];
+                        var ids = eo.Ids ?? new ushort[0];
+                        var owners = eo.Owners ?? new byte[0];
+                        int count = Math.Min(Math.Min(ids.Length, owners.Length), ushort.MaxValue);
                         w.Write(eo.Key);
-                        w.Write((ushort)Math.Min(owned.Length, ushort.MaxValue));
-                        for (int i = 0; i < Math.Min(owned.Length, ushort.MaxValue); i++) w.Write(owned[i]);
+                        w.Write((ushort)count);
+                        for (int i = 0; i < count; i++) { w.Write(ids[i]); w.Write(owners[i]); }
                         break;
                     case MessageType.WorldSlot:
                     case MessageType.ShopState:
@@ -202,11 +210,21 @@ namespace Coop.Core.Protocol
                         }
                         case MessageType.PlayerName:
                             return (type, new PlayerName { Name = rd.ReadString() });
+                        case MessageType.Relay:
+                        {
+                            var rl = new Relay { From = rd.ReadByte() };
+                            int rn = rd.ReadInt32();
+                            if (rn < 0 || rn > FrameBuffer.MaxFrameSize) throw new InvalidDataException("bad relay size");
+                            rl.Inner = rd.ReadBytes(rn);
+                            return (type, rl);
+                        }
                         case MessageType.EnemyOwners:
                         {
                             var eo = new EnemyOwners { Key = rd.ReadInt32() };
-                            eo.GuestOwned = new ushort[rd.ReadUInt16()];
-                            for (int i = 0; i < eo.GuestOwned.Length; i++) eo.GuestOwned[i] = rd.ReadUInt16();
+                            int count = rd.ReadUInt16();
+                            eo.Ids = new ushort[count];
+                            eo.Owners = new byte[count];
+                            for (int i = 0; i < count; i++) { eo.Ids[i] = rd.ReadUInt16(); eo.Owners[i] = rd.ReadByte(); }
                             return (type, eo);
                         }
                         case MessageType.WorldSlot:

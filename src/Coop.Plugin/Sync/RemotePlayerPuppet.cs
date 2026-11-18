@@ -24,16 +24,18 @@ namespace Coop.Plugin.Sync
         private PlayerState _latest;
         private bool _shown;
 
-        public string Label = "P2";
-        public PeerSession Session;
+        public int Index;
+        public CoopLink Session;
+        public float LastStateAt;
 
-        public static RemotePlayerPuppet Spawn(PeerSession session)
+        public static RemotePlayerPuppet Spawn(CoopLink session, int index)
         {
-            var go = new GameObject("@CoopRemoteWill");
+            var go = new GameObject("@CoopRemoteWill" + index);
             DontDestroyOnLoad(go);
             var p = go.AddComponent<RemotePlayerPuppet>();
             p.Session = session;
-            p.Label = session.IsHost ? "P2" : "P1";
+            p.Index = index;
+            p.LastStateAt = Time.realtimeSinceStartup;
             session.PlayerStateReceived += p.OnState;
             session.SpriteDefReceived += p.OnSpriteDef;
             return p;
@@ -49,10 +51,16 @@ namespace Coop.Plugin.Sync
             Destroy(gameObject);
         }
 
-        private void OnSpriteDef(SpriteDef def) => _names.Define(def.Id, def.Key);
+        // Each player numbers their own sprites: only take this player's.
+        private void OnSpriteDef(SpriteDef def)
+        {
+            if (Session.LastFrom == Index) _names.Define(def.Id, def.Key);
+        }
 
         private void OnState(PlayerState s)
         {
+            if (Session.LastFrom != Index) return;
+            LastStateAt = Time.realtimeSinceStartup;
             if (_latest != null && s.SceneId != _latest.SceneId) _positions.Clear();
             _latest = s;
             _positions.Add(Time.realtimeSinceStartup, s.X, s.Y, s.Z);
@@ -146,9 +154,9 @@ namespace Coop.Plugin.Sync
             var (tr, tg, tb) = NameTint.For(_latest.Hp, _latest.MaxHp, _latest.Ghost);
             var shadow = new GUIStyle(style);
             shadow.normal.textColor = new Color(0f, 0f, 0f, 0.8f);
-            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), PlayerNames.Partner, shadow);
+            GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), PlayerNames.Name(Index), shadow);
             style.normal.textColor = new Color(tr, tg, tb);
-            GUI.Label(rect, PlayerNames.Partner, style);
+            GUI.Label(rect, PlayerNames.Name(Index), style);
         }
     }
 }

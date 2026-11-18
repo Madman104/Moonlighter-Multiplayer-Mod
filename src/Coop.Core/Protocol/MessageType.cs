@@ -31,5 +31,6 @@ namespace Coop.Core.Protocol
         EnemyOwners = 27,
         PlayerName = 28,
         CatchUp = 29,
+        Relay = 30,
     }
 }

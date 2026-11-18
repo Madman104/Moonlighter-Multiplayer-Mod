@@ -20,6 +20,23 @@ namespace Coop.Core.Dungeon
             return guestOwnsNow ? guest - host <= margin : host - guest > margin;
         }
 
+        /// <summary>
+        /// Which player runs an enemy. distSq[i] = squared distance from player i (infinity = not
+        /// available). The current owner keeps it unless someone is closer by more than margin;
+        /// an unavailable owner is replaced by the nearest; nobody available = host (0).
+        /// </summary>
+        public static int Owner(int current, float[] distSq, float margin)
+        {
+            int best = -1;
+            float bestD = float.PositiveInfinity;
+            for (int i = 0; i < distSq.Length; i++)
+                if (!float.IsInfinity(distSq[i]) && !float.IsNaN(distSq[i]) && distSq[i] < bestD) { best = i; bestD = distSq[i]; }
+            if (best < 0) return 0;
+            bool currentOk = current >= 0 && current < distSq.Length && !float.IsInfinity(distSq[current]) && !float.IsNaN(distSq[current]);
+            if (!currentOk) return best;
+            return (float)Math.Sqrt(distSq[current]) - (float)Math.Sqrt(bestD) > margin ? best : current;
+        }
+
         /// <summary>One number per room (x, y, secret), for tagging per-room messages.</summary>
         public static int RoomKey(int x, int y, bool secret)
             => ((x & 0x7FFF) << 16) | ((y & 0x7FFF) << 1) | (secret ? 1 : 0);

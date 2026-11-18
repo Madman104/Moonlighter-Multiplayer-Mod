@@ -14,16 +14,31 @@ namespace Coop.Plugin.Shared
     /// revives you by using a healing pool, which is then used up. Both down = normal death.
     /// Becoming a ghost drops your bag (except safe slots) where you fell, in that room; a
     /// ghost can't pick items up, so walk back to the pile after being revived.
-    /// Also draws the partner's health bar in dungeons.
+    /// Up to four players: you become a ghost while anyone else is alive; a healing pool used
+    /// by a living player revives every ghost; when nobody is left alive it's a real death.
     /// </summary>
     internal sealed class GhostMode : MonoBehaviour
     {
         public const float GhostAlpha = 0.4f;
 
         public static bool LocalGhost { get; private set; }
-        public static float PartnerHp { get; private set; } = -1f;
-        public static float PartnerMaxHp { get; private set; }
-        public static bool PartnerGhost { get; private set; }
+        private sealed class Other { public float Hp = -1f; public bool Ghost; public float At; }
+        private static readonly System.Collections.Generic.Dictionary<int, Other> Others = new System.Collections.Generic.Dictionary<int, Other>();
+
+        private static bool Fresh(Other o) => Time.realtimeSinceStartup - o.At < 5f;
+
+        /// <summary>Another player who can still act: alive, or still loading (health unknown).</summary>
+        private static bool AnyOtherAlive()
+        {
+            foreach (var o in Others.Values) if (Fresh(o) && !o.Ghost && (o.Hp > 0f || o.Hp < 0f)) return true;
+            return false;
+        }
+
+        private static bool AnyOtherGhost()
+        {
+            foreach (var o in Others.Values) if (Fresh(o) && o.Ghost) return true;
+            return false;
+        }
 
         private static bool _realDeath;
 
@@ -49,15 +64,22 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(GhostMode), nameof(CanPlacePrefix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
-            PartnerHp = -1f;
-            PartnerGhost = false;
+            Others.Clear();
             session.PlayerStateReceived += s =>
             {
-                PartnerHp = s.Hp;
-                PartnerMaxHp = s.MaxHp;
-                PartnerGhost = s.Ghost;
+                int from = session.LastFrom;
+                if (!Others.TryGetValue(from, out var o)) Others[from] = o = new Other();
+                o.Hp = s.Hp;
+                o.Ghost = s.Ghost;
+                o.At = Time.realtimeSinceStartup;
+            };
+            session.PeerLeft += i =>
+            {
+                Others.Remove(i);
+                // Host: the last other player left while you're a ghost: nobody can revive you.
+                if (session.IsHost && LocalGhost && !AnyOtherAlive()) RealDeath("nobody is left to revive you");
             };
             session.GameMessageReceived += (type, msg) =>
             {
@@ -67,7 +89,7 @@ namespace Coop.Plugin.Shared
                     var hm = HeroMerchant.Instance;
                     float max = hm != null ? (float)hm.heroMerchantStats.currentHealth.maxValue : 100f;
                     Exit(GhostRules.ReviveHealth(max));
-                    CoopPlugin.Log.LogInfo("Co-op: your partner revived you");
+                    CoopPlugin.Log.LogInfo("Co-op: you were revived");
                 }
             };
             session.StateChanged += st =>
@@ -82,7 +104,7 @@ namespace Coop.Plugin.Shared
             };
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -97,7 +119,7 @@ namespace Coop.Plugin.Shared
         private static bool DiePrefix()
         {
             if (_realDeath || LocalGhost) return !LocalGhost || _realDeath;
-            if (!GhostRules.ShouldBecomeGhost(Connected(out _), InSharedDungeon(), PartnerHp, PartnerGhost)) return true;
+            if (!GhostRules.ShouldBecomeGhost(Connected(out _), InSharedDungeon(), AnyOtherAlive() ? 1f : 0f, false)) return true;
             Enter();
             return false;
         }
@@ -169,15 +191,14 @@ namespace Coop.Plugin.Shared
             if (LocalGhost) return false; // ghosts can't use pools
             var t = Traverse.Create(__instance);
             float pool = t.Field("healingHealth").GetValue<float>();
-            if (!GhostRules.CanRevive(LocalGhost, PartnerGhost, pool) || !Connected(out var s)) return true;
+            if (!GhostRules.CanRevive(LocalGhost, AnyOtherGhost(), pool) || !Connected(out var s)) return true;
 
             s.SendGame(MessageType.Revive, null);
             var room = t.Field("myRoom").GetValue<DungeonRoom>();
             if (room != null)
                 s.SendGame(MessageType.PoolSpent, new PoolSpent { X = (short)room.x, Y = (short)room.y, Secret = room.isSecret });
             Drain(__instance);
-            PartnerGhost = false;
-            CoopPlugin.Log.LogInfo("Co-op: healing pool used to revive your partner");
+            CoopPlugin.Log.LogInfo("Co-op: healing pool used to revive the ghosts");
             return false;
         }
 
@@ -278,14 +299,11 @@ namespace Coop.Plugin.Shared
             if ((float)hm.heroMerchantStats.currentHealth.Value <= 0f)
                 hm.heroMerchantStats.currentHealth.Value = 1f; // keep the controller alive
 
-            // Partner really died (not a ghost, no health): both are down -> normal death.
-            if (PartnerHp == 0f && !PartnerGhost) { RealDeath("both players are down"); return; }
-
-            // Both became ghosts at the same moment: nobody can revive -> normal death after 2 s.
-            if (PartnerGhost)
+            // Nobody else is alive (all ghosts or dead): nobody can revive -> normal death after 2 s.
+            if (!AnyOtherAlive())
             {
                 if (_bothGhostSince < 0f) _bothGhostSince = Time.realtimeSinceStartup;
-                else if (Time.realtimeSinceStartup - _bothGhostSince > 2f) { _bothGhostSince = -1f; RealDeath("both players are ghosts"); }
+                else if (Time.realtimeSinceStartup - _bothGhostSince > 2f) { _bothGhostSince = -1f; RealDeath("everyone is down"); }
             }
             else _bothGhostSince = -1f;
         }

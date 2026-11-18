@@ -45,12 +45,12 @@ namespace Coop.Plugin.Shared
                 postfix: new HarmonyMethod(typeof(CitizenMirror), nameof(GeneratePostfix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             Reset();
             Sprites.Reset();
             Names.Clear();
-            session.SpriteDefReceived += def => { if (def.Id >= SpriteBase) Names.Define(def.Id, def.Key); };
+            session.SpriteDefReceived += def => { if (session.LastFrom == 0 && def.Id >= SpriteBase) Names.Define(def.Id, def.Key); };
             session.GameMessageReceived += (type, msg) =>
             {
                 if (type != MessageType.EntityStates) return;
@@ -72,7 +72,7 @@ namespace Coop.Plugin.Shared
             Incoming.Clear();
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
@@ -144,7 +144,7 @@ namespace Coop.Plugin.Shared
             DrawCopies(local);
         }
 
-        private static void HostSend(PeerSession s, Citizen[] citizens)
+        private static void HostSend(CoopLink s, Citizen[] citizens)
         {
             float now = Time.realtimeSinceStartup;
             if (now < _nextSend) return;
@@ -155,7 +155,7 @@ namespace Coop.Plugin.Shared
             s.SendFrequent(MessageType.EntityStates, new EntityStates { Group = EntityStates.Citizens, Entities = list.ToArray() });
         }
 
-        private static EntityState Describe(PeerSession s, Transform root, ushort id)
+        private static EntityState Describe(CoopLink s, Transform root, ushort id)
         {
             var renderers = root.GetComponentsInChildren<SpriteRenderer>(true);
             var layers = new List<SpriteLayer>();

@@ -37,13 +37,13 @@ namespace Coop.Plugin.Shared
         private static void StatsInitPrefix() => _loadingSave = true;
         private static void StatsInitPostfix() => _loadingSave = false;
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             session.GameMessageReceived += OnGameMessage;
             session.StateChanged += st => { if (st == SessionState.Connected) { _nextTotal = 0f; Purse.Reset(); } };
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;

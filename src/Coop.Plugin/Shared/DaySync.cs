@@ -28,13 +28,13 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(DaySync), nameof(SleepPrefix)));
         }
 
-        public static void Attach(PeerSession session)
+        public static void Attach(CoopLink session)
         {
             session.GameMessageReceived += OnGameMessage;
             session.StateChanged += st => { if (st == SessionState.Connected) _nextSync = 0f; };
         }
 
-        private static bool Connected(out PeerSession s)
+        private static bool Connected(out CoopLink s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
