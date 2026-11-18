@@ -20,5 +20,6 @@ namespace Coop.Core.Protocol
         GoldTotal = 16,
         Revive = 17,
         DayTimeSync = 18,
+        PoolSpent = 19,
     }
 }

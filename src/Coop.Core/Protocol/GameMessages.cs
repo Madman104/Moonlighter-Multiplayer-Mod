@@ -86,3 +86,14 @@ namespace Coop.Core.Protocol
         public bool FromBed;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>The healing pool in this room was used up (to revive a ghost).</summary>
+    public sealed class PoolSpent
+    {
+        public short X;
+        public short Y;
+        public bool Secret;
+    }
+}

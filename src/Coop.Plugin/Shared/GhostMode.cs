@@ -52,6 +52,7 @@ namespace Coop.Plugin.Shared
             };
             session.GameMessageReceived += (type, msg) =>
             {
+                if (type == MessageType.PoolSpent) { DrainPoolIn((PoolSpent)msg); return; }
                 if (type == MessageType.Revive && LocalGhost)
                 {
                     var hm = HeroMerchant.Instance;
@@ -97,6 +98,19 @@ namespace Coop.Plugin.Shared
             if (!GhostRules.CanRevive(LocalGhost, PartnerGhost, pool) || !Connected(out var s)) return true;
 
             s.SendGame(MessageType.Revive, null);
+            var room = t.Field("myRoom").GetValue<DungeonRoom>();
+            if (room != null)
+                s.SendGame(MessageType.PoolSpent, new PoolSpent { X = (short)room.x, Y = (short)room.y, Secret = room.isSecret });
+            Drain(__instance);
+            PartnerGhost = false;
+            CoopPlugin.Log.LogInfo("Co-op: healing pool used to revive your partner");
+            return false;
+        }
+
+        /// <summary>Empties a healing pool and darkens it, as the game does when it runs dry.</summary>
+        private static void Drain(HealingArea pool)
+        {
+            var t = Traverse.Create(pool);
             t.Field("healingHealth").SetValue(0f);
             float dark = t.Field("darknessTint").GetValue<float>() / 255f;
             var c = new Color(dark, dark, dark, 1f);
@@ -104,9 +118,18 @@ namespace Coop.Plugin.Shared
             var extra = t.Field("renderExtraLayer").GetValue<SpriteRenderer>();
             if (render != null) render.color = c;
             if (extra != null) extra.color = c;
-            PartnerGhost = false;
-            CoopPlugin.Log.LogInfo("Co-op: healing pool used to revive your partner");
-            return false;
+        }
+
+        private static void DrainPoolIn(PoolSpent p)
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null) return;
+            foreach (var room in dm.dungeonRooms)
+            {
+                if (room == null || room.x != p.X || room.y != p.Y || room.isSecret != p.Secret) continue;
+                foreach (var pool in room.GetComponentsInChildren<HealingArea>(true)) Drain(pool);
+                return;
+            }
         }
 
         private static void TownPrefix()

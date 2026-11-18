@@ -6,7 +6,7 @@ Written at the end of an unattended session. Start here tomorrow.
 - **Repo:** this folder (git). Branches are stacked, each one built on the previous:
   `main` → `feat/coop-stage1` → `feat/coop-stage2` → `feat/coop-stage3` → `feat/coop-stage4` → `feat/coop-stage5` → **`feat/coop-stage6` (checked out, newest)**.
   Nothing is merged into `main` and nothing is pushed anywhere.
-- **Installed in the game:** the newest build (stage 6a) is deployed to `D:\SteamLibrary\steamapps\common\Moonlighter\BepInEx\plugins\MoonlighterCoop\`.
+- **Installed in the game:** the newest build (stage 6a + review fixes, mod 0.6.0) is deployed to `D:\SteamLibrary\steamapps\common\Moonlighter\BepInEx\plugins\MoonlighterCoop\`.
 - **Build & deploy:** close the game, then run `tools\deploy.ps1`. Tests: `"C:\Program Files\dotnet\dotnet.exe" test -c Release` (119 passing).
 - **Test on one PC:** start Moonlighter through Steam (host), then run `tools\launch-test-client.ps1` (second copy, no Steam, own saves). Connect with pause → **CO-OP** → HOST (IP) / JOIN 127.0.0.1.
 - **What to test, stage by stage:** `docs/TESTING.md`. Stage 1 passed your test. Stages 2–6a are built and smoke-tested only: both copies start and connect with every patch applied and no errors. Nobody has played them yet.
@@ -38,6 +38,33 @@ Written at the end of an unattended session. Start here tomorrow.
 - **Gold:** the host's total is pushed every 2 s; the guest's spending is sent as changes. A quick double-spend by both at the same moment is possible.
 
 ## Review status
-- Stage 1: whole-branch review done, fixes applied.
-- Stage 2: review done; all 4 critical and the main important findings fixed (commit `f62c810`).
-- Stages 3a–6a: a review was started at the end of the session. See the section below for results and fixes.
+- **Stage 1:** whole-branch review done; fixes applied.
+- **Stage 2:** review done; all 4 critical findings and the main important ones fixed (commit `f62c810`).
+- **Stages 3a–6a:** review done; fixes in commit `52f9c86`, plus pool sync after it:
+  - Enemies now have a stable spawn-order id. The killing blow is shared, and hits no longer land on the wrong enemy when the two games' enemy lists differ.
+  - The other player's hits now count even during a local invincibility window.
+  - Loading a save no longer sends its gold to the partner. Returning to the main menu leaves the session.
+  - The guest's save stays blocked after a disconnect until a save is reloaded.
+  - Ghost fixes:
+    - A ghost now keeps 1 health.
+    - Both players being ghosts, or the partner really dying, now ends in a normal death.
+    - Going home as a ghost keeps the death penalty.
+    - While a partner is loading, their health counts as unknown, not as dead.
+  - A revive drains the pool on both games.
+  - The mod version is now **0.6.0**, so older builds are refused.
+
+### Review findings not fixed yet (minor)
+- **Day/night:**
+  - The guest's day counter can drift from the host's, because only morning/evening is synced.
+  - A shop closing shows "Your partner rested" on the guest.
+  - The guest gets no bed benefits.
+  - The guest sees the notice after the day changes, not before.
+- **Gold:** if both players spend at the same instant with too little gold, one purchase can end up free.
+- **Ghosts:**
+  - Ghosts can drink potions.
+  - Ghosts are possible in Wanderer/ICT dungeons, where enemy health isn't shared.
+- **Enemies:** max health can still differ between games (difficulty, NG+ and night levelling are per player). The host's 1 s correction hides it, but health-bar fractions can differ.
+- **Enemy summons** (boss minions, resurrections) get ids in each game's own order, so they can still mismatch. Pack enemies and bosses are stable.
+
+## Stage 4b (shared bag) — start here
+See `docs/notes/stage4b-inventory-recon.md`. Open question: how the game turns an `ItemSaveInfo` back into an `ItemStack` (find the code that loads the inventory from `GameSlot`). That's the first thing to look up.
