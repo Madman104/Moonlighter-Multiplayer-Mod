@@ -161,3 +161,26 @@ Manual checklist (not played yet):
 | Up/Down reaches it with keys | PASS (you tested it, after the navigation fix) |
 | Selecting it loads the save, then hosting starts in town | PASS (test-client mode, IP hosting, you tested it) |
 | Steam: lobby made and invite window opens | not tested |
+
+## 1.0 play-test checklist (two PCs, Steam)
+Nothing below has been played yet. Mark PASS/FAIL with notes.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Host: main menu "Continue as co-op host": loads, invite window opens in town | |
+| 2 | Guest accepts the invite from the main menu ("Join co-op" opens the friends list) and lands in the host's town with their own bag | |
+| 3 | Guest accepts while already in their own game: goes to the main menu, then loads the host's world | |
+| 4 | Gold matches on both screens; both buy at the same moment with little gold: total ends right | |
+| 5 | Shop: guest puts an item on a showcase and sets a price; host sees it. Host takes it; guest sees it gone | |
+| 6 | Shop: either player opens the shop; customers appear for both; guest sells at the register | |
+| 7 | Storage chest: item moved by one player appears for the other | |
+| 8 | Dungeon: same floor; guest's minimap starts unexplored | |
+| 9 | Enemies are in the same place on both screens; one chasing the guest attacks the guest | |
+| 10 | Kill enemies from both sides; room opens for both | |
+| 11 | Ghost: bag drops; revive at a pool; pick the bag back up | |
+| 12 | Host uses the pendant; back in town both use the host's portal (guest's portal asks the host) | |
+| 13 | Host sleeps: new day for both; day number matches | |
+| 14 | Host quits mid-dungeon: guest gets a notice, bag kept, back to the main menu; guest's save shows their own gold/day | |
+| 15 | Guest quits: host keeps playing; enemies move normally | |
+| 16 | Controller only (both players): every co-op menu entry reachable; invite accepted via the overlay | |
+| 17 | Unknown (5th) dungeon: same floor and enemies | |
