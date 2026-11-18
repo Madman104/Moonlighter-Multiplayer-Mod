@@ -135,6 +135,19 @@ namespace Coop.Plugin.Sync
             return _spriteCache.TryGetValue(key, out var sprite) ? sprite : null;
         }
 
+        private static int _bodySlot = -1;
+
+        /// <summary>Slot of Will's body sprite: same prefab on both games, so same order as the local Will.</summary>
+        private static int BodySlot()
+        {
+            if (_bodySlot >= 0) return _bodySlot;
+            var hm = HeroMerchant.Instance;
+            if (hm == null || hm.heroMerchantController == null || hm.heroMerchantController.heroMerchantArt == null) return -1;
+            var bodyRenderer = hm.heroMerchantController.heroMerchantArt.GetComponentInChildren<SpriteRenderer>();
+            _bodySlot = System.Array.IndexOf(LocalPlayerSampler.RenderersOf(hm), bodyRenderer);
+            return _bodySlot;
+        }
+
         private void SetAllVisible(bool v)
         {
             foreach (var r in _slots) r.enabled = v;
@@ -143,9 +156,11 @@ namespace Coop.Plugin.Sync
         private void OnGUI()
         {
             if (!_shown || Camera.main == null) return;
-            float top = transform.position.y;
-            foreach (var r in _slots)
-                if (r.enabled) top = Mathf.Max(top, r.bounds.max.y);
+            // Just above the body sprite (other layers, e.g. effects, can reach far higher).
+            int body = BodySlot();
+            float top = body >= 0 && body < _slots.Count && _slots[body].enabled
+                ? _slots[body].bounds.max.y + 2f
+                : transform.position.y + 40f;
             var screen = Camera.main.WorldToScreenPoint(new Vector3(transform.position.x, top, transform.position.z));
             if (screen.z < 0) return;
             var rect = new Rect(screen.x - 120, Screen.height - screen.y - 24, 240, 22);
