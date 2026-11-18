@@ -32,5 +32,5 @@ Results:
 
 | # | Date | Result | Notes |
 |---|---|---|---|
-| 1–7 | | | |
+| 1–7 | 2026-11-18 | PASS | reported by user: works on one PC (pause-menu CO-OP page, connect, see each other) |
 | 8 | | not tested | needs second account |
