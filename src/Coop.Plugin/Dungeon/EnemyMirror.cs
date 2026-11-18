@@ -322,6 +322,17 @@ namespace Coop.Plugin.Dungeon
             b.enabled = false;
         }
 
+        /// <summary>
+        /// True when this game only mirrors the enemy: another player's game runs it and it is
+        /// chasing and attacking that player. Its hits must not land on this game's Will.
+        /// </summary>
+        public static bool IsFollowed(Component c)
+        {
+            if (c == null || Paused.Count == 0) return false;
+            var tag = c.GetComponentInParent<CoopEnemyId>();
+            return tag != null && Paused.ContainsKey(tag.gameObject);
+        }
+
         private static void Restore(SavedState saved)
         {
             foreach (var kv in saved.Enabled) if (kv.Key != null) kv.Key.enabled = kv.Value;
