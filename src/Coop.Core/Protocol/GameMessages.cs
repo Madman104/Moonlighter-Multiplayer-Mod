@@ -35,5 +35,7 @@ namespace Coop.Core.Protocol
         public sbyte DoorIndex;
         public bool Special;
         public bool TeleportToLastDoor;
+        public bool FromSecret;
+        public bool ToSecret;
     }
 }

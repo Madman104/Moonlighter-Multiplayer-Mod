@@ -61,3 +61,9 @@ Known limits of stage 2 (by design): enemies, chests and loot are not shared yet
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–7 | | | |
+
+More stage 2 limits found in review (not fixed yet):
+- The joining player's minimap starts fully revealed (the game's saved-floor builder reveals it).
+- The joining player's save doesn't record deeper floors reached, the Golem special unlock, the Wanderer spawn chance or the desert shrine on hard-enemy floors (those come from the normal generator, which the joining side skips).
+- Pendant/emblem: going home is shared, but returning through the emblem portal is not; the other player stays in town.
+- Unknown (DLC) and Wanderer floors are not shared yet: each game builds its own.

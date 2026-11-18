@@ -22,6 +22,13 @@ namespace Coop.Plugin.Dungeon
         private static readonly FloorLayoutStore Layouts = new FloorLayoutStore();
         private static bool _bypassPrefix;
         private static bool _hooked;
+        private static int _travelToken;
+
+        /// <summary>True while the client is building (or waiting for) the host's floor.</summary>
+        public static bool ClientBuilding { get; private set; }
+
+        /// <summary>Raised on the client when the host's floor is built and playable.</summary>
+        public static event Action ClientFloorReady;
 
         public static void Apply(Harmony harmony)
         {
@@ -33,7 +40,7 @@ namespace Coop.Plugin.Dungeon
         /// <summary>Called when a co-op session starts.</summary>
         public static void Attach(PeerSession session)
         {
-            Layouts.Clear();
+            NewTravel();
             session.GameMessageReceived += OnGameMessage;
             if (!_hooked)
             {
@@ -42,11 +49,25 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
+        /// <summary>
+        /// Any dungeon or town travel: older layouts and pending waits no longer apply.
+        /// </summary>
+        public static void NewTravel()
+        {
+            _travelToken++;
+            Layouts.Clear();
+            ClientBuilding = false;
+        }
+
         private static bool Connected(out PeerSession s)
         {
             s = CoopManager.Instance != null ? CoopManager.Instance.Session : null;
             return s != null && s.State == SessionState.Connected;
         }
+
+        /// <summary>Only the four regular dungeons are generated from rooms; others are prefabs.</summary>
+        private static bool IsSharedCulture(ItemMaster.Culture c)
+            => c >= ItemMaster.Culture.Golem && c <= ItemMaster.Culture.Tech;
 
         private static void OnGameMessage(MessageType type, object msg)
         {
@@ -56,15 +77,33 @@ namespace Coop.Plugin.Dungeon
             CoopPlugin.Log.LogInfo($"Received floor layout {(ItemMaster.Culture)f.Culture} {f.Floor} ({f.Json.Length} chars)");
         }
 
-        // Host: a floor finished generating, send its layout.
         private static void OnGenerated()
         {
-            if (!Connected(out var s) || !s.IsHost) return;
+            if (!Connected(out var s)) return;
+            if (!s.IsHost)
+            {
+                if (ClientBuilding)
+                {
+                    ClientBuilding = false;
+                    ClientFloorReady?.Invoke();
+                }
+                return;
+            }
+
             var dm = DungeonManager.Instance;
-            if (dm == null) return;
+            if (dm == null || !IsSharedCulture(dm.culture)) return;
             try
             {
                 var info = new DungeonSaveInfo(dm);
+                // The saved-floor builder starts in the "portal room", or in the boss room
+                // (killing its enemies) when there is none. Point it at the first room.
+                int start = info.rooms.FindIndex(r => dm.initialDungeonRoom != null
+                    && r.x == dm.initialDungeonRoom.x && r.y == dm.initialDungeonRoom.y && !r.isSecret);
+                if (start >= 0)
+                {
+                    info.portalRoomIndex = start;
+                    info.portalPosition = dm.initialDungeonRoom.transform.position;
+                }
                 FsJSONManager.Serialize(info, out fsData data);
                 var json = data.ToString();
                 s.SendGame(MessageType.FloorLayout, new FloorLayout { Culture = (byte)info.culture, Floor = (byte)info.floor, Json = json });
@@ -79,22 +118,26 @@ namespace Coop.Plugin.Dungeon
         // Client: build the host's floor instead of a random one.
         private static bool GeneratePrefix(ItemMaster.Culture culture, int level, bool test, ref IEnumerator __result)
         {
-            if (_bypassPrefix || test || !Connected(out var s) || s.IsHost) return true;
-            __result = ClientFloor(culture, level);
+            if (_bypassPrefix || test || !IsSharedCulture(culture) || !Connected(out var s) || s.IsHost) return true;
+            __result = ClientFloor(culture, level, _travelToken);
             return false;
         }
 
-        private static IEnumerator ClientFloor(ItemMaster.Culture culture, int level)
+        private static IEnumerator ClientFloor(ItemMaster.Culture culture, int level, int token)
         {
+            ClientBuilding = true;
             CoopPlugin.Log.LogInfo($"Waiting for the host's {culture} floor {level}...");
             float deadline = Time.realtimeSinceStartup + ClientWaitSeconds;
             string json = null;
             while (Time.realtimeSinceStartup < deadline)
             {
+                if (token != _travelToken) yield break; // a newer trip replaced this one
                 if (Layouts.TryTake((int)culture, level, out json)) break;
                 if (!Connected(out _)) break;
                 yield return null;
             }
+            if (token != _travelToken) yield break;
+            if (GameManager.Instance != null && !GameManager.Instance.IsDungeonSceneLoaded()) yield break;
 
             DungeonSaveInfo info = null;
             if (json != null)
@@ -117,6 +160,7 @@ namespace Coop.Plugin.Dungeon
                 yield break;
             }
 
+            ClientBuilding = false;
             CoopPlugin.Log.LogWarning($"No floor layout from the host for {culture} floor {level}; generating locally");
             IEnumerator own;
             _bypassPrefix = true;

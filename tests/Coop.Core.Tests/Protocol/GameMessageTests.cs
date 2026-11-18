@@ -68,6 +68,19 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void RoomChange_carries_secret_room_flags()
+        {
+            // A secret room shares its parent's grid position, so the flag tells them apart.
+            var d = RoundTrip(MessageType.RoomChange, new RoomChange { ToX = 1, ToY = 1, FromSecret = true, ToSecret = false });
+            Assert.True(d.FromSecret);
+            Assert.False(d.ToSecret);
+            d = RoundTrip(MessageType.RoomChange, new RoomChange { ToSecret = true });
+            Assert.True(d.ToSecret);
+            Assert.False(d.FromSecret);
+            Assert.False(d.Special);
+        }
+
+        [Fact]
         public void Game_messages_reach_peer_only_when_connected()
         {
             double now = 0;

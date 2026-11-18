@@ -70,7 +70,7 @@ namespace Coop.Core.Protocol
                         w.Write(rc.ToX);
                         w.Write(rc.ToY);
                         w.Write(rc.DoorIndex);
-                        w.Write((byte)((rc.Special ? 1 : 0) | (rc.TeleportToLastDoor ? 2 : 0)));
+                        w.Write((byte)((rc.Special ? 1 : 0) | (rc.TeleportToLastDoor ? 2 : 0) | (rc.FromSecret ? 4 : 0) | (rc.ToSecret ? 8 : 0)));
                         break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
@@ -127,6 +127,8 @@ namespace Coop.Core.Protocol
                             byte f = rd.ReadByte();
                             rc.Special = (f & 1) != 0;
                             rc.TeleportToLastDoor = (f & 2) != 0;
+                            rc.FromSecret = (f & 4) != 0;
+                            rc.ToSecret = (f & 8) != 0;
                             return (type, rc);
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
