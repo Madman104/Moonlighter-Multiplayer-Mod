@@ -136,6 +136,7 @@ namespace Coop.Plugin.Dungeon
                 finally { _remote = false; }
                 return true;
             }
+            if (m.Kind == RoomObject.WaveStart || m.Kind == RoomObject.WaveDone) return WaveSync.Apply(room, m);
             if (m.Kind == RoomObject.Pool)
             {
                 var pool = Nearest<HealingArea>(room, m);

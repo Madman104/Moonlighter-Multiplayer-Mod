@@ -172,6 +172,13 @@ namespace Coop.Plugin.Dungeon
             }
         }
 
+        /// <summary>A chest that appeared later (enemy-wave reward): the host sends its content again.</summary>
+        public static void ResendLater(DungeonRoom room, int index)
+        {
+            if (room == null || index < 0) return;
+            SentInitial.Remove(Id(EnemyOwnership.RoomKey(room.x, room.y, room.isSecret), index));
+        }
+
         /// <summary>Host: a guest joined late; send every chest on this floor to them.</summary>
         public static void ResendTo(CoopLink s, int guest)
         {

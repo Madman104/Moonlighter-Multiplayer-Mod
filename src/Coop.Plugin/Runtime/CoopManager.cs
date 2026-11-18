@@ -138,6 +138,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.BreakableSync.Attach(Session);
             Dungeon.ChestSync.Attach(Session);
             Dungeon.RoomObjectSync.Attach(Session);
+            Dungeon.WaveSync.Attach(Session);
             Dungeon.LateApply.Clear();
             Shared.GoldSync.Attach(Session);
             Shared.GhostMode.Attach(Session);

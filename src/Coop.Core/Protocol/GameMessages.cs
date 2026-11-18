@@ -283,11 +283,14 @@ namespace Coop.Core.Protocol
     /// <summary>
     /// State of a room object, found by its position relative to the room.
     /// Shrine: Value 1 = used (doors opened). Pool: Value = fraction of healing left (0..1).
+    /// WaveStart / WaveDone: an enemy-wave shrine's wave started / was beaten.
     /// </summary>
     public sealed class RoomObject
     {
         public const byte Shrine = 1;
         public const byte Pool = 2;
+        public const byte WaveStart = 3;
+        public const byte WaveDone = 4;
 
         public int RoomKey;
         public byte Kind;

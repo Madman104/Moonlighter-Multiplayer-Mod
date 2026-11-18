@@ -223,3 +223,10 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 4. Host buys a town upgrade: the guest's log says "town upgrades updated from another player"; the shop/bed level works for the guest.
 5. Wanderer DLC dungeon: same floor, same enemies, shared loot.
 6. Log lines: "Partner hitbox layer N, touches M enemy layers" (M should be 2-4), "Enemy hit guard on A AttackHit and B contact methods".
+
+## Waves, boss minions, panning, bed (mod 1.8.0)
+1. Enemy-wave shrine: when one player starts it, the other window plays the same wave (room closes, portals open) with the same enemies; beating it opens the room and the reward chest in both windows, with the same content.
+2. Golem King: its rocks/minions appear in both windows and can be hit by both.
+3. Partner sounds come from their side of the screen (left/right).
+4. Host sleeps: the guest gets the bed bonus (shield/absorption) too.
+5. Guest presses LEAVE CO-OP: the toast says "Left co-op", and their bag, gear and discoveries are in their own save.

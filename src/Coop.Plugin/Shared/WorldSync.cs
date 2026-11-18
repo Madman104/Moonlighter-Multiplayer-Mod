@@ -318,7 +318,9 @@ namespace Coop.Plugin.Shared
             InHostWorld = false;
             var gm = GameManager.Instance;
             if (gm == null || HeroMerchant.Instance == null) return;
-            CoopToast.Show("Lost the host. Your bag and gear are kept; back to the main menu");
+            var reason = CoopManager.Instance != null && CoopManager.Instance.Session != null ? CoopManager.Instance.Session.CloseReason : null;
+            CoopToast.Show((reason == "You left" ? "Left co-op." : "Lost the host.")
+                + " Your bag, gear and discoveries are saved; back to the main menu");
             CoopPlugin.Log.LogInfo("Co-op: host gone; saving your bag and returning to the main menu");
             GhostMode.ReclaimPile();
             try

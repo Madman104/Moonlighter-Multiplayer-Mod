@@ -19,8 +19,9 @@ namespace Coop.Plugin.Shared
     /// Town upgrades show up for everyone during the session, not only on the next join. The
     /// game reads them live from the current slot (shop level, bed, cash register, which
     /// townspeople are open), so each game sends its town board and banker when they change and
-    /// the others put them in their slot (last change wins). Buildings that appear in town are
-    /// drawn the next time that player enters town, as the game does after a purchase.
+    /// the others put them in their slot (last change wins). Newly opened shops in town appear
+    /// at once (VillageManager.UpdateCharacters); a bigger shop building is drawn the next time
+    /// that player enters town.
     /// </summary>
     internal static class TownSync
     {
@@ -80,6 +81,9 @@ namespace Coop.Plugin.Shared
                 if (snap.banker != null) slot.bankerSaveInfo = snap.banker;
                 _lastApplied = Read(slot);
                 _lastSent = _lastApplied;
+                // New shops in town (blacksmith, witch...) open straight away if we're in town.
+                var village = UnityEngine.Object.FindObjectOfType<VillageManager>();
+                if (village != null) village.UpdateCharacters();
                 CoopPlugin.Log.LogInfo("Co-op: town upgrades updated from another player");
             }
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not apply the town: " + e.Message); }

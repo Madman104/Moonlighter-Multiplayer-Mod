@@ -98,7 +98,18 @@ namespace Coop.Plugin.Shared
                 _applyingRemote = false;
             }
             FollowCalendar(d.TotalDays); // the change above may have added a day
-            if (d.FromBed) CoopToast.Show(target == DayTime.Afternoon ? "Your partner rested: it's now evening" : "Your partner slept: a new day begins");
+            if (d.FromBed)
+            {
+                CoopToast.Show(target == DayTime.Afternoon ? "Your partner rested: it's now evening" : "Your partner slept: a new day begins");
+                // Everyone wakes up rested: the bed's bonus shield/absorption, as if they'd slept too.
+                try
+                {
+                    var slot = GameManager.Instance != null ? GameManager.Instance.currentGameSlot : null;
+                    if (HeroMerchant.Instance != null && slot != null && slot.townboardSaveInfo != null)
+                        ShopManager.GiveWillBedBenefits(slot.townboardSaveInfo.GetBedLevel());
+                }
+                catch (Exception e) { CoopPlugin.Log.LogWarning("Could not give the bed bonus: " + e.Message); }
+            }
         }
 
         // The guest's day counter follows the host's (only morning/evening was synced before).

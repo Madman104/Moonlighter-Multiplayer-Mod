@@ -22,7 +22,9 @@ namespace Coop.Plugin.Sync
     /// stop made inside that mark is sent (throttled) as PlayerSound.
     ///
     /// Receiving: played at a volume that falls off with the distance to that player's Will,
-    /// scaled to the camera view; nothing when they're in another place.
+    /// scaled to the camera view, and panned left/right by where they are on screen; nothing
+    /// when they're in another place. The game reuses its audio sources, so the pan is put back
+    /// once our sound has finished.
     /// </summary>
     internal static class PartnerSounds
     {
@@ -44,6 +46,7 @@ namespace Coop.Plugin.Sync
         private static int _willDepth;
         private static bool _replaying;
         private static float _nextScan;
+        private static readonly List<SoundGroupVariation> Panned = new List<SoundGroupVariation>();
 
         public static void Apply(Harmony harmony)
         {
@@ -105,6 +108,13 @@ namespace Coop.Plugin.Sync
         /// <summary>Every frame from CoopManager: patches sound methods of new components under Will.</summary>
         public static void Tick()
         {
+            for (int i = Panned.Count - 1; i >= 0; i--)
+            {
+                var v = Panned[i];
+                if (v != null && v.IsPlaying) continue;
+                if (v != null && v.VarAudio != null) v.VarAudio.panStereo = 0f;
+                Panned.RemoveAt(i);
+            }
             if (_harmony == null || Time.realtimeSinceStartup < _nextScan) return;
             _nextScan = Time.realtimeSinceStartup + ScanInterval;
             if (!Connected(out _)) return;
@@ -200,6 +210,13 @@ namespace Coop.Plugin.Sync
                 var result = MasterAudio.PlaySound(msg.Name, vol);
                 if (result != null && result.ActingVariation != null)
                 {
+                    var src = result.ActingVariation.VarAudio;
+                    if (src != null)
+                    {
+                        float dx = p.Pos.x - will.transform.position.x;
+                        src.panStereo = Mathf.Clamp(dx / (view * 2f), -1f, 1f) * 0.8f;
+                        if (!Panned.Contains(result.ActingVariation)) Panned.Add(result.ActingVariation);
+                    }
                     if (!p.Playing.TryGetValue(msg.Name, out var list)) p.Playing[msg.Name] = list = new List<SoundGroupVariation>();
                     list.RemoveAll(v => v == null || !v.IsPlaying);
                     list.Add(result.ActingVariation);
