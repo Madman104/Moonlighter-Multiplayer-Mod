@@ -148,6 +148,7 @@ namespace Coop.Plugin.Runtime
 
         private void Update()
         {
+            if (!TestClientMode.Active) Steam.SteamLobby.EnsureInitialized();
             if (Session == null || _transport == null) return;
             try
             {

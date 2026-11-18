@@ -38,7 +38,7 @@ namespace Coop.Plugin.Runtime
 
             GUI.enabled = !mgr.IsActive;
             GUILayout.BeginHorizontal();
-            GUI.enabled = !mgr.IsActive && HostSteam != null && !TestClientMode.Active;
+            GUI.enabled = !mgr.IsActive && HostSteam != null;
             if (GUILayout.Button(new GUIContent("Host (Steam)", TestClientMode.Active ? "Steam not available in test client" : "Invite a Steam friend")))
                 HostSteam();
             GUI.enabled = !mgr.IsActive;
