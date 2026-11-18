@@ -18,7 +18,7 @@ namespace Coop.Plugin.Dungeon
     /// <summary>
     /// Stage 3a: enemy health and deaths are shared; each game runs its own enemy AI.
     /// Enemies have double health in co-op, both games pick the same champions. Loot is per
-    /// player: each game drops its own loot from enemy deaths (bags are separate).
+    /// player only for quest drops: enemy loot is rolled by the host and shared (FloorItems).
     /// Enemies are identified by a spawn-order id, not by their place in room.roomEnemies
     /// (that list shrinks on death and AI adds/removes enemies at local timing).
     /// </summary>

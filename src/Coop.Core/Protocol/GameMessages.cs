@@ -223,3 +223,27 @@ namespace Coop.Core.Protocol
         public bool Stop;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// An item landed on a dungeon floor in the sender's game (enemy loot, a broken pot...).
+    /// Everyone else puts the same item there. Id = (creator's player number &lt;&lt; 24) | counter.
+    /// </summary>
+    public sealed class FloorItemSpawn
+    {
+        public int Id;
+        public int RoomKey;
+        public float X;
+        public float Y;
+        /// <summary>The game's ItemSaveInfo as JSON.</summary>
+        public string Json = "";
+    }
+
+    /// <summary>A shared floor item was picked up: Remaining 0 = gone, otherwise what's left of the stack.</summary>
+    public sealed class FloorItemTaken
+    {
+        public int Id;
+        public int Remaining;
+    }
+}

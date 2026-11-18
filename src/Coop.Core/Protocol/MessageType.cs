@@ -33,5 +33,7 @@ namespace Coop.Core.Protocol
         CatchUp = 29,
         Relay = 30,
         PlayerSound = 31,
+        FloorItemSpawn = 32,
+        FloorItemTaken = 33,
     }
 }

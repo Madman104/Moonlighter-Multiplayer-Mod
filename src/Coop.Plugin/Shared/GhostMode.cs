@@ -179,7 +179,9 @@ namespace Coop.Plugin.Shared
                 inv.SetItem(null, i);
                 Pile.Add(item);
                 if (room != null) room.AddDropItems(new System.Collections.Generic.List<ItemStack> { item });
-                item.Drop(at, 30f, parent);
+                Dungeon.FloorItems.LocalOnly = true; // a ghost's own bag isn't shared loot
+                try { item.Drop(at, 30f, parent); }
+                finally { Dungeon.FloorItems.LocalOnly = false; }
                 dropped++;
             }
             if (dropped > 0) CoopToast.Show("Your items dropped where you fell - pick them up once you're revived");

@@ -187,3 +187,10 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 | 18 | (1.0.2) Host goes into the dungeon while the guest is still loading in: guest arrives in the host's room | |
 | 19 | (1.0.2) Partner health bar sits under the gold, not over the bag icon; Steam names shown | |
 | 20 | (1.0.2) Town: same townspeople in the same places on both screens; guest can talk to them | |
+
+## Shared floor loot (mod 1.3.0)
+1. Both in a dungeon room: kill an enemy. The same items land in the same places on both screens (the guest's copy appears about 1 s later, when the host's has landed).
+2. One player picks an item up: it disappears from the other screen. A partial pickup (full bag) leaves the same count on both.
+3. Break a pot / get boss loot: same items on both screens.
+4. Become a ghost: your dropped bag is only on your screen.
+5. Log: "Shared floor item not known here" means the item didn't exist in that game (DLC/NG+ mismatch).

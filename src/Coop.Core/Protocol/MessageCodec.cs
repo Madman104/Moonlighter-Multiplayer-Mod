@@ -157,6 +157,14 @@ namespace Coop.Core.Protocol
                         w.Write(snd.Volume);
                         w.Write(snd.Stop);
                         break;
+                    case MessageType.FloorItemSpawn:
+                        var fis = (FloorItemSpawn)msg;
+                        w.Write(fis.Id); w.Write(fis.RoomKey); w.Write(fis.X); w.Write(fis.Y); w.Write(fis.Json ?? "");
+                        break;
+                    case MessageType.FloorItemTaken:
+                        var fit = (FloorItemTaken)msg;
+                        w.Write(fit.Id); w.Write(fit.Remaining);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -219,6 +227,10 @@ namespace Coop.Core.Protocol
                             return (type, new PlayerName { Name = rd.ReadString() });
                         case MessageType.PlayerSound:
                             return (type, new PlayerSound { Name = rd.ReadString(), Volume = rd.ReadSingle(), Stop = rd.ReadBoolean() });
+                        case MessageType.FloorItemSpawn:
+                            return (type, new FloorItemSpawn { Id = rd.ReadInt32(), RoomKey = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle(), Json = rd.ReadString() });
+                        case MessageType.FloorItemTaken:
+                            return (type, new FloorItemTaken { Id = rd.ReadInt32(), Remaining = rd.ReadInt32() });
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };

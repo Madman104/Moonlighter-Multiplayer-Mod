@@ -28,7 +28,8 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 |---|---|
 | Town, shop, upgrades, quests, calendar and time of day; townspeople walk the same way on both screens | Your bag, equipment and weapons |
 | Gold: one purse, and either player's purchase spends it | Your health |
-| Dungeon floors and rooms: you're always in the same room | Your loot: each player gets their own drops |
+| Dungeon floors and rooms: you're always in the same room | Your quest drops |
+| Loot on the floor: one copy for everyone, whoever picks it up first gets it | |
 | Enemies: same place, same health (2× health in co-op) | |
 | The shop: showcases, prices, chests, customers, cash register | |
 | Sounds: you hear each other's footsteps, swings and hits, quieter with distance | |
