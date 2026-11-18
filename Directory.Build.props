@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <GameDir Condition="'$(GameDir)' == ''">D:\SteamLibrary\steamapps\common\Moonlighter</GameDir>
+    <LangVersion Condition="'$(MSBuildProjectName)' != 'Coop.Core.Tests'">9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+</Project>
