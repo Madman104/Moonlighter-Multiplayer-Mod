@@ -123,6 +123,7 @@ namespace Coop.Plugin.Shared
                 {
                     LoadingHostWorld = false;
                     InHostWorld = true;
+                    Dungeon.TravelSync.RequestCatchUp();
                     CoopToast.Show("You're in the host's world");
                     CoopPlugin.Log.LogInfo("Co-op: playing in the host's world");
                 }

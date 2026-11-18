@@ -100,14 +100,30 @@ namespace Coop.Plugin.Dungeon
 
             var dm = DungeonManager.Instance;
             if (dm == null || !IsSharedCulture(dm.culture)) return;
+            // The saved-floor builder starts in the "portal room", or in the boss room
+            // (killing its enemies) when there is none. Point it at the first room.
+            // After an emblem-portal return, start in the room the host is in (the portal room).
+            var startRoom = HostEmblemTrip && dm.currentDungeonRoom != null ? dm.currentDungeonRoom : dm.initialDungeonRoom;
+            HostEmblemTrip = false;
+            SendLayout(s, dm, startRoom);
+        }
+
+        /// <summary>
+        /// Host: a guest finished loading after the host had already gone into a dungeon. Send
+        /// the floor as it is now, starting in the host's room (cleared rooms stay cleared).
+        /// </summary>
+        public static void SendCurrentFloor(PeerSession s)
+        {
+            var dm = DungeonManager.Instance;
+            if (dm == null || !IsSharedCulture(dm.culture) || dm.currentDungeonRoom == null) return;
+            SendLayout(s, dm, dm.currentDungeonRoom);
+        }
+
+        private static void SendLayout(PeerSession s, DungeonManager dm, DungeonRoom startRoom)
+        {
             try
             {
                 var info = new DungeonSaveInfo(dm);
-                // The saved-floor builder starts in the "portal room", or in the boss room
-                // (killing its enemies) when there is none. Point it at the first room.
-                // After an emblem-portal return, start in the room the host is in (the portal room).
-                var startRoom = HostEmblemTrip && dm.currentDungeonRoom != null ? dm.currentDungeonRoom : dm.initialDungeonRoom;
-                HostEmblemTrip = false;
                 int start = info.rooms.FindIndex(r => startRoom != null
                     && r.x == startRoom.x && r.y == startRoom.y && r.isSecret == startRoom.isSecret);
                 if (start >= 0)

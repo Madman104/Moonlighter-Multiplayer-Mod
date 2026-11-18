@@ -35,6 +35,7 @@ namespace Coop.Plugin
             Shared.DaySync.Apply(_harmony);
             Shared.WorldSync.Apply(_harmony);
             Shared.ShopSync.Apply(_harmony);
+            Shared.CitizenMirror.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }

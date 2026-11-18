@@ -130,6 +130,7 @@ namespace Coop.Plugin.Runtime
             Shared.DaySync.Attach(Session);
             Shared.WorldSync.Attach(Session);
             Shared.ShopSync.Attach(Session);
+            Shared.CitizenMirror.Attach(Session);
             SessionStarted?.Invoke();
         }
 
@@ -195,6 +196,7 @@ namespace Coop.Plugin.Runtime
             Shared.DaySync.Tick();
             Shared.WorldSync.Tick();
             Shared.ShopSync.Tick();
+            Shared.CitizenMirror.Tick();
 
             if (_lingering != null || _lingerReason != null)
             {

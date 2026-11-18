@@ -30,5 +30,6 @@ namespace Coop.Core.Protocol
         ShopOpen = 26,
         EnemyOwners = 27,
         PlayerName = 28,
+        CatchUp = 29,
     }
 }

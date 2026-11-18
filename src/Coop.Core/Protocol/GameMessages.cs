@@ -162,6 +162,7 @@ namespace Coop.Core.Protocol
     {
         public const byte ShopVisitors = 1;
         public const byte Enemies = 2;
+        public const byte Citizens = 3;
 
         public byte Group;
         /// <summary>Group-specific key. Enemies: EnemyOwnership.RoomKey of the room.</summary>

@@ -108,6 +108,26 @@ namespace Coop.Plugin.Dungeon
             return true;
         }
 
+        /// <summary>
+        /// Guest: just arrived in the host's world. Trips made while this game was still loading
+        /// were missed, so ask where the host is.
+        /// </summary>
+        public static void RequestCatchUp()
+        {
+            if (Connected(out var s) && !s.IsHost) s.SendGame(MessageType.CatchUp, null);
+        }
+
+        // Host: if in a shared dungeon, send the trip and the current floor again.
+        private static void AnswerCatchUp(PeerSession s)
+        {
+            var gm = GameManager.Instance;
+            var dm = DungeonManager.Instance;
+            if (gm == null || !gm.IsDungeonSceneLoaded() || dm == null || !SharedCultures.Contains(dm.culture)) return;
+            CoopPlugin.Log.LogInfo($"Partner joined late: sending {dm.culture} floor {dm.level} again");
+            s.SendGame(MessageType.DungeonTravel, new DungeonTravel { Culture = (byte)dm.culture, Level = (byte)dm.level, Replay = false });
+            FloorSync.SendCurrentFloor(s);
+        }
+
         private static bool HasEmblemPortal(GameManager gm)
         {
             var e = gm.currentGameSlot != null ? gm.currentGameSlot.emblemDungeon : null;
@@ -186,6 +206,11 @@ namespace Coop.Plugin.Dungeon
 
         private static void OnGameMessage(MessageType type, object msg)
         {
+            if (type == MessageType.CatchUp)
+            {
+                if (Connected(out var cs) && cs.IsHost) AnswerCatchUp(cs);
+                return;
+            }
             if (type == MessageType.EmblemReturn)
             {
                 if (Connected(out var hs) && hs.IsHost) FollowEmblemRequest();
