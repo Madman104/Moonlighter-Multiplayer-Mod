@@ -116,3 +116,9 @@ Each stage is playable and tested in the real game before the next one starts:
 - Mod menu / UI for host and join.
 - Disconnect handling (suggested default: client is returned to the main menu; host continues solo).
 - Project layout and build setup (C# class library targeting .NET Framework 4.x, referencing the game's Managed DLLs and BepInEx core).
+
+## Decisions added 2026-11-18 (user, before leaving)
+- **Enemy toughness:** in co-op, enemies have **2x max health**; damage unchanged.
+- **Shop:** **both players** can set prices and use the counter; the host's game validates every sale (no double sales).
+- **Bed:** when the **host** sleeps, the day ends for both; the friend gets a notice first.
+- **Unattended work:** when blocked, pick the safest option, record it in `handoff.md` under "Decisions to check", keep going. Stop at 5% usage left and write `handoff.md`.
