@@ -263,19 +263,48 @@ namespace Coop.Plugin.Shared
         private static float _askedAt;
         private static readonly System.Collections.Generic.List<Collider2D> Disabled = new System.Collections.Generic.List<Collider2D>();
 
-        /// <summary>The living player to watch (lowest player number), or null.</summary>
-        private static Other Target()
+        private static int _watching = -1;
+
+        /// <summary>Living players on this floor, by player number.</summary>
+        private static System.Collections.Generic.List<int> Watchable()
         {
             int scene = GameInfo.CurrentSceneId();
-            Other best = null;
-            int bestKey = int.MaxValue;
+            var list = new System.Collections.Generic.List<int>();
             foreach (var kv in Others)
             {
                 var o = kv.Value;
-                if (!Fresh(o) || o.Ghost || o.Hp == 0f || o.Scene != scene) continue;
-                if (kv.Key < bestKey) { bestKey = kv.Key; best = o; }
+                if (Fresh(o) && !o.Ghost && o.Hp != 0f && o.Scene == scene) list.Add(kv.Key);
             }
-            return best;
+            list.Sort();
+            return list;
+        }
+
+        /// <summary>
+        /// The living player being watched. With one, always them; with several, left click /
+        /// left bumper goes to the previous one and right click / right bumper to the next.
+        /// If the watched player dies or leaves, the next living one is picked.
+        /// </summary>
+        private static Other Target()
+        {
+            var list = Watchable();
+            if (list.Count == 0) return null;
+            int at = list.IndexOf(_watching);
+            int step = 0;
+            if (list.Count > 1)
+            {
+                if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.JoystickButton4)) step = -1;
+                else if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.JoystickButton5)) step = 1;
+            }
+            if (at < 0) { at = 0; step = step == 0 ? 0 : step; }
+            int next = ((at + step) % list.Count + list.Count) % list.Count;
+            if (list[next] != _watching)
+            {
+                _watching = list[next];
+                _askedRoom = PlayerState.NoRoom; // go to their room straight away
+                string who = Runtime.PlayerNames.Name(_watching);
+                CoopToast.Show(list.Count > 1 ? $"Watching {who} (left/right click to switch)" : $"Watching {who}");
+            }
+            return Others[_watching];
         }
 
         /// <summary>Will is hidden, can't move or touch anything, and is carried along with the watched player.</summary>
@@ -319,6 +348,7 @@ namespace Coop.Plugin.Shared
         private static void StopSpectating(HeroMerchant hm)
         {
             _askedRoom = PlayerState.NoRoom;
+            _watching = -1;
             if (!_spectateStarted) return;
             _spectateStarted = false;
             foreach (var c in Disabled) if (c != null) c.enabled = true;

@@ -50,7 +50,8 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 **Rooms:** each player can go anywhere on the floor. What happened in a room you weren't in (enemies killed, pots broken, chests emptied, shrines used) is there when you walk in. Loot from an enemy is rolled by the game of the player who fought it.
 
 ## Dying and spectating
-- **Dying while anyone else is alive:** you **spectate**. Your Will disappears and your view follows a living player, room to room and floor to floor. Nothing is dropped.
+- **Dying while anyone else is alive:** you **spectate**. Your Will disappears and you're always in the same room as the living player you watch, room to room and floor to floor. Nothing is dropped.
+- **Several players alive:** left click (or the left bumper) watches the previous one, right click (or the right bumper) the next.
 - **Your run ends** when the player you watch goes home, or when nobody is left alive. Then it's a normal death, with the same results screen and item loss as in solo play.
 
 ## Saves

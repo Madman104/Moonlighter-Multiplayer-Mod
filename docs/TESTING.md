@@ -239,3 +239,7 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 5. Taking the stairs or going home: everyone goes.
 6. Die while the partner lives: you vanish and watch them; nothing drops. When they go home you get the normal death results (bag lost like solo).
 7. Dungeon framerate is steady (no hitch every couple of seconds).
+
+## Spectate switching (mod 1.9.1)
+1. 2 players: the dead player is always in the living player's room (changes room with them).
+2. 3+ players, one dead: left/right click (or bumpers) switches who you watch; a toast names them; the view moves to their room.
