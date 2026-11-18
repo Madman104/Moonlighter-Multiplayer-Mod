@@ -121,6 +121,7 @@ namespace Coop.Plugin.Runtime
             CoopPlugin.Log.LogInfo(status);
             Dungeon.FloorSync.Attach(Session);
             Dungeon.TravelSync.Attach(Session);
+            Dungeon.EnemySync.Attach(Session);
             SessionStarted?.Invoke();
         }
 
@@ -178,6 +179,7 @@ namespace Coop.Plugin.Runtime
         {
             if (!TestClientMode.Active) Steam.SteamLobby.EnsureInitialized();
             HandleAutoArgs();
+            Dungeon.EnemySync.Tick();
 
             if (_lingering != null || _lingerReason != null)
             {

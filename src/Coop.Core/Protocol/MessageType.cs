@@ -14,5 +14,7 @@ namespace Coop.Core.Protocol
         DungeonTravel = 10,
         TownTravel = 11,
         RoomChange = 12,
+        EnemyDamage = 13,
+        EnemyHealth = 14,
     }
 }

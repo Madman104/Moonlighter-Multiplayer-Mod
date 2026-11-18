@@ -67,3 +67,20 @@ More stage 2 limits found in review (not fixed yet):
 - The joining player's save doesn't record deeper floors reached, the Golem special unlock, the Wanderer spawn chance or the desert shrine on hard-enemy floors (those come from the normal generator, which the joining side skips).
 - Pendant/emblem: going home is shared, but returning through the emblem portal is not; the other player stays in town.
 - Unknown (DLC) and Wanderer floors are not shared yet: each game builds its own.
+
+## Stage 3a (shared enemy health)
+
+Automated (2026-11-18): `dotnet test` 109 pass; two connected test copies start with the enemy patches (EnemyStats.Init, SpawnEnemies, CurrentHealth setter, DropItemsOnDeath) applied, no errors.
+
+Needs a person:
+1. **Same enemies.** Enter a room together: both windows show the same enemy types; a champion (glowing) appears in both or neither.
+2. **Double health.** Enemies take about twice as many hits as in solo.
+3. **Shared damage.** Hit an enemy in one window: its health bar drops in the other window too. Kill it in one window: it dies in the other.
+4. **Room clears together.** When all enemies are dead, doors open in both windows.
+5. **Loot.** Only the host window drops items (the test window drops none, by design until stage 4).
+
+Known limit (by design for 3a): enemies move independently on each screen (each chases its own player).
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–5 | | | |

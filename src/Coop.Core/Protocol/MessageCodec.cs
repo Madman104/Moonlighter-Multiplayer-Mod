@@ -72,6 +72,17 @@ namespace Coop.Core.Protocol
                         w.Write(rc.DoorIndex);
                         w.Write((byte)((rc.Special ? 1 : 0) | (rc.TeleportToLastDoor ? 2 : 0) | (rc.FromSecret ? 4 : 0) | (rc.ToSecret ? 8 : 0)));
                         break;
+                    case MessageType.EnemyDamage:
+                        var ed = (EnemyDamage)msg;
+                        w.Write(ed.X); w.Write(ed.Y); w.Write(ed.Secret); w.Write(ed.Index); w.Write(ed.Delta);
+                        break;
+                    case MessageType.EnemyHealth:
+                        var eh = (EnemyHealth)msg;
+                        w.Write(eh.X); w.Write(eh.Y); w.Write(eh.Secret);
+                        var hp = eh.Hp ?? new float[0];
+                        w.Write((byte)System.Math.Min(hp.Length, 255));
+                        for (int i = 0; i < System.Math.Min(hp.Length, 255); i++) w.Write(hp[i]);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -130,6 +141,14 @@ namespace Coop.Core.Protocol
                             rc.FromSecret = (f & 4) != 0;
                             rc.ToSecret = (f & 8) != 0;
                             return (type, rc);
+                        case MessageType.EnemyDamage:
+                            return (type, new EnemyDamage { X = rd.ReadInt16(), Y = rd.ReadInt16(), Secret = rd.ReadBoolean(), Index = rd.ReadByte(), Delta = rd.ReadSingle() });
+                        case MessageType.EnemyHealth:
+                            var ehx = new EnemyHealth { X = rd.ReadInt16(), Y = rd.ReadInt16(), Secret = rd.ReadBoolean() };
+                            int hn = rd.ReadByte();
+                            ehx.Hp = new float[hn];
+                            for (int i = 0; i < hn; i++) ehx.Hp[i] = rd.ReadSingle();
+                            return (type, ehx);
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
                     }

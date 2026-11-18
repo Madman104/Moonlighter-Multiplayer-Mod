@@ -39,3 +39,25 @@ namespace Coop.Core.Protocol
         public bool ToSecret;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>An enemy lost health on the sender's game. Enemy = index in room.roomEnemies.</summary>
+    public sealed class EnemyDamage
+    {
+        public short X;
+        public short Y;
+        public bool Secret;
+        public byte Index;
+        public float Delta;
+    }
+
+    /// <summary>Host's health for every enemy of one room (drift correction).</summary>
+    public sealed class EnemyHealth
+    {
+        public short X;
+        public short Y;
+        public bool Secret;
+        public float[] Hp;
+    }
+}

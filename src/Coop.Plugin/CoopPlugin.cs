@@ -27,6 +27,7 @@ namespace Coop.Plugin
             Menu.CoopPauseMenu.Apply(_harmony);
             Dungeon.FloorSync.Apply(_harmony);
             Dungeon.TravelSync.Apply(_harmony);
+            Dungeon.EnemySync.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }
