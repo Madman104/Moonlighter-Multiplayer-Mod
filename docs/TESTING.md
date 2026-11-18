@@ -84,3 +84,17 @@ Known limit (by design for 3a): enemies move independently on each screen (each 
 | # | Date | Result | Notes |
 |---|---|---|---|
 | 1–5 | | | |
+
+## Stage 4a (shared gold) + guest save protection
+
+Automated (2026-11-18): `dotnet test` 111 pass; two connected test copies start with the Stat.Value and SerializeGameSlot patches applied, no errors.
+
+Needs a person:
+1. **Same purse.** After connecting, the test window's gold changes to the host's amount.
+2. **Spend once.** Buy something in either window: both windows show the same lower total.
+3. **Earn together.** Pick up gold in a dungeon in either window: both totals rise by the same amount.
+4. **Guest save untouched.** Play as the test window, quit, and check that `CoopTestClient\gameslot` did not change while connected (log line: `your own save is not written while you are a guest`).
+
+| # | Date | Result | Notes |
+|---|---|---|---|
+| 1–4 | | | |

@@ -28,6 +28,8 @@ namespace Coop.Plugin
             Dungeon.FloorSync.Apply(_harmony);
             Dungeon.TravelSync.Apply(_harmony);
             Dungeon.EnemySync.Apply(_harmony);
+            Shared.GoldSync.Apply(_harmony);
+            Shared.SaveGuard.Apply(_harmony);
             Runtime.CoopManager.Create();
         }
     }

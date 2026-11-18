@@ -16,5 +16,7 @@ namespace Coop.Core.Protocol
         RoomChange = 12,
         EnemyDamage = 13,
         EnemyHealth = 14,
+        GoldDelta = 15,
+        GoldTotal = 16,
     }
 }

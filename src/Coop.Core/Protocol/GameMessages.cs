@@ -61,3 +61,18 @@ namespace Coop.Core.Protocol
         public float[] Hp;
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>The sender's game gained or spent gold (shared purse).</summary>
+    public sealed class GoldDelta
+    {
+        public int Delta;
+    }
+
+    /// <summary>Host's gold total (sent on connect and periodically for correction).</summary>
+    public sealed class GoldTotal
+    {
+        public int Value;
+    }
+}

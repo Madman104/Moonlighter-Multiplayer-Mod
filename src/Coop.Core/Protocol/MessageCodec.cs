@@ -83,6 +83,12 @@ namespace Coop.Core.Protocol
                         w.Write((byte)System.Math.Min(hp.Length, 255));
                         for (int i = 0; i < System.Math.Min(hp.Length, 255); i++) w.Write(hp[i]);
                         break;
+                    case MessageType.GoldDelta:
+                        w.Write(((GoldDelta)msg).Delta);
+                        break;
+                    case MessageType.GoldTotal:
+                        w.Write(((GoldTotal)msg).Value);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -149,6 +155,10 @@ namespace Coop.Core.Protocol
                             ehx.Hp = new float[hn];
                             for (int i = 0; i < hn; i++) ehx.Hp[i] = rd.ReadSingle();
                             return (type, ehx);
+                        case MessageType.GoldDelta:
+                            return (type, new GoldDelta { Delta = rd.ReadInt32() });
+                        case MessageType.GoldTotal:
+                            return (type, new GoldTotal { Value = rd.ReadInt32() });
                         default:
                             throw new InvalidDataException("Unknown message type " + payload[0]);
                     }
