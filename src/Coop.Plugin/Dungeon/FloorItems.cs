@@ -50,6 +50,12 @@ namespace Coop.Plugin.Dungeon
         public const int Revoked = -1;
         private static int _enemyDeath, _lootRoll, _counter, _scene = int.MinValue;
         private static bool _remoteCreate;
+        private static int _logged; // per floor: the first few shared items are logged, to diagnose
+
+        private static void Note(string what)
+        {
+            if (_logged++ < 12) CoopPlugin.Log.LogInfo("Floor items: " + what);
+        }
 
         public static void Apply(Harmony harmony)
         {
@@ -134,6 +140,7 @@ namespace Coop.Plugin.Dungeon
             if (room == null) return;
             int id = (s.LocalIndex << 24) | (++_counter & 0xFFFFFF);
             Track(id, __instance, room, false);
+            Note($"dropped {__instance.master?.name} in room ({room.x},{room.y}), id {id}");
         }
 
         private static void Track(int id, ItemStack stack, DungeonRoom room, bool sent)
@@ -169,7 +176,7 @@ namespace Coop.Plugin.Dungeon
         {
             if (!Connected(out var s)) return;
             int scene = GameInfo.CurrentSceneId();
-            if (scene != _scene) { _scene = scene; Clear(); return; } // floor changed: old items are gone everywhere
+            if (scene != _scene) { _scene = scene; Clear(); _logged = 0; return; } // floor changed: old items are gone everywhere
             if (Items.Count == 0) return;
             List<int> gone = null;
             foreach (var kv in Items)
@@ -177,6 +184,7 @@ namespace Coop.Plugin.Dungeon
                 var e = kv.Value;
                 if (!OnFloor(e))
                 {
+                    if (!e.Sent) Note($"id {kv.Key} left the floor before landing (parent {(e.Stack != null && e.Stack.transform.parent != null ? e.Stack.transform.parent.name : "none")})");
                     if (e.Sent)
                     {
                         if (e.Stack != null && InBag(e.Stack) && e.Stack.master != null)
@@ -198,6 +206,7 @@ namespace Coop.Plugin.Dungeon
                     if (pick == null || !pick.CanPick) continue; // still flying
                     if (e.Room == null) continue;
                     s.SendGame(MessageType.FloorItemSpawn, SpawnOf(kv.Key, e));
+                    Note($"sent {e.Stack.master?.name} x{e.Stack.Quantity} (id {kv.Key})");
                     e.Sent = true;
                     e.Qty = e.Stack.Quantity;
                 }
@@ -269,7 +278,8 @@ namespace Coop.Plugin.Dungeon
 
         private static bool TrySpawn(FloorItemSpawn msg)
         {
-            if (Items.ContainsKey(msg.Id) || !Sharing(out _)) return true;
+            if (Items.ContainsKey(msg.Id)) return true;
+            if (!Sharing(out _)) { Note($"id {msg.Id} arrived but this game isn't in a shared dungeon"); return true; }
             var room = FindRoom(msg.RoomKey);
             if (room == null) return false;
             ItemStack stack = null;
@@ -283,6 +293,7 @@ namespace Coop.Plugin.Dungeon
                 stack.Drop(new Vector2(msg.X, msg.Y), 0f, room.transform);
                 room.AddDropItems(new List<ItemStack> { stack });
                 Track(msg.Id, stack, room, true);
+                Note($"placed {stack.master?.name} x{stack.Quantity} from another player (id {msg.Id}) at {msg.X:0},{msg.Y:0}");
             }
             catch (Exception e)
             {
