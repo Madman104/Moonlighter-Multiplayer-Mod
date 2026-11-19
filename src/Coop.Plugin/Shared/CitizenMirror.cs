@@ -174,6 +174,7 @@ namespace Coop.Plugin.Shared
                 {
                     Slot = (byte)i, SpriteId = sid, Visible = visible && sid != 0, FlipX = r.flipX,
                     SortingOrder = (short)Mathf.Clamp(r.sortingOrder, short.MinValue, short.MaxValue),
+                    SortingLayerId = r.sortingLayerID,
                     LocalX = local.x, LocalY = local.y,
                 });
             }
@@ -262,6 +263,7 @@ namespace Coop.Plugin.Shared
                     if (sprite == null) continue;
                     r.sprite = sprite;
                     r.flipX = layer.FlipX;
+                    r.sortingLayerID = layer.SortingLayerId;
                     r.sortingOrder = layer.SortingOrder;
                     child.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
                 }

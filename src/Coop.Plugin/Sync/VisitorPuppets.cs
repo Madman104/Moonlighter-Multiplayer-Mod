@@ -65,6 +65,7 @@ namespace Coop.Plugin.Sync
                     if (sprite == null) continue;
                     r.sprite = sprite;
                     r.flipX = layer.FlipX;
+                    r.sortingLayerID = layer.SortingLayerId; // expression bubbles are above the body
                     r.sortingOrder = layer.SortingOrder;
                     r.transform.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
                 }

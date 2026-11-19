@@ -461,7 +461,7 @@ namespace Coop.Plugin.Dungeon
                 r.sprite = sprite;
                 r.flipX = layer.FlipX;
                 r.sortingOrder = layer.SortingOrder;
-                if (layer.SortingLayerId != 0) r.sortingLayerID = layer.SortingLayerId;
+                r.sortingLayerID = layer.SortingLayerId;
                 child.localPosition = new Vector3(layer.LocalX, layer.LocalY, 0f);
             }
         }

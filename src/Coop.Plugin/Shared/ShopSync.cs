@@ -385,6 +385,7 @@ namespace Coop.Plugin.Shared
                     Visible = true,
                     FlipX = r.flipX ^ (r.transform.lossyScale.x < 0),
                     SortingOrder = (short)Mathf.Clamp(r.sortingOrder, short.MinValue, short.MaxValue),
+                    SortingLayerId = r.sortingLayerID,
                     LocalX = local.x,
                     LocalY = local.y,
                 });

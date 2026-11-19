@@ -103,7 +103,7 @@ namespace Coop.Plugin.Sync
                     continue;
                 }
                 r.enabled = true;
-                if (layer.SortingLayerId != 0) r.sortingLayerID = layer.SortingLayerId;
+                r.sortingLayerID = layer.SortingLayerId;
                 r.sprite = sprite;
                 r.flipX = layer.FlipX;
                 r.sortingOrder = layer.SortingOrder;
