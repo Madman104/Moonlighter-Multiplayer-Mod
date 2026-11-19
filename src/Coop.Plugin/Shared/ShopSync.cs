@@ -32,7 +32,7 @@ namespace Coop.Plugin.Shared
     /// </summary>
     internal static class ShopSync
     {
-        public const float StateInterval = 0.5f;
+        public const float StateInterval = 0.2f; // stands update live for the others
         public const float VisitorInterval = 0.1f;
         public const ushort VisitorSpriteBase = 40000; // Will's sprite ids stay below this
 
@@ -45,6 +45,11 @@ namespace Coop.Plugin.Shared
         private static float _lastVisitorsAt;
         private static float _nextState, _nextVisitors;
         private static bool _hostCashWaiting;
+
+        // ---- one player at a time in the shop's menus ----
+        private const int Nobody = -1;
+        private static int _holder = Nobody;   // who holds the shop's menus (host decides)
+        private static bool _localOpen;        // a shop menu is open here
 
         private static readonly SpriteIdAllocator VisitorSprites = new SpriteIdAllocator(VisitorSpriteBase);
         private static readonly Dictionary<Agent, ushort> VisitorIds = new Dictionary<Agent, ushort>();
@@ -61,6 +66,10 @@ namespace Coop.Plugin.Shared
                 prefix: new HarmonyMethod(typeof(ShopSync), nameof(SellPrefix)));
             harmony.Patch(AccessTools.Method(typeof(CashPoint), nameof(CashPoint.IsInstantActionBlocked)),
                 prefix: new HarmonyMethod(typeof(ShopSync), nameof(CashBlockedPrefix)));
+            var gate = new HarmonyMethod(typeof(ShopSync), nameof(MenuPrefix));
+            harmony.Patch(AccessTools.Method(typeof(GUIManager), nameof(GUIManager.GoToShowcasePanel)), prefix: gate);
+            harmony.Patch(AccessTools.Method(typeof(GUIManager), nameof(GUIManager.GoToChestPanel)), prefix: gate);
+            harmony.Patch(AccessTools.Method(typeof(GUIManager), nameof(GUIManager.GoToSalesBox)), prefix: gate);
         }
 
         public static void Attach(CoopLink session)
@@ -70,6 +79,9 @@ namespace Coop.Plugin.Shared
             _baseReady = false;
             _resendAll = false;
             _hostCashWaiting = false;
+            _holder = Nobody;
+            _localOpen = false;
+            session.PeerLeft += i => { if (_holder == i) SetHolder(session, Nobody); };
             VisitorSprites.Reset();
             VisitorIds.Clear();
             _nextVisitorId = 1;
@@ -150,6 +162,9 @@ namespace Coop.Plugin.Shared
                 case MessageType.ShopOpen:
                     OpenLocally();
                     break;
+                case MessageType.ShopBusy:
+                    OnBusy((ShopBusy)msg);
+                    break;
                 case MessageType.CashSell:
                     if (Connected(out var hs) && hs.IsHost) HostSell();
                     break;
@@ -182,6 +197,92 @@ namespace Coop.Plugin.Shared
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not sell for your partner: " + e.Message); }
         }
 
+        // ---- one player at a time ----
+
+        /// <summary>A shop menu (stand, shop chest, sales box) is open in this game.</summary>
+        private static bool ShopMenuOpen()
+        {
+            if (Refs() == null || GUIManager.Instance == null) return false;
+            var inv = GUIManager.Instance.currentInventory;
+            return inv is ShowcaseInventoryPanel || inv is ChestInventoryPanel || inv is SalesBoxInventoryPanel;
+        }
+
+        private static bool MenuPrefix()
+        {
+            if (!Connected(out var s) || Refs() == null) return true;
+            if (!s.IsHost && !WorldSync.InHostWorld) return true;
+            if (_holder != Nobody && _holder != s.LocalIndex)
+            {
+                CoopToast.Show(Runtime.PlayerNames.Name(_holder) + " is using the shop");
+                return false;
+            }
+            // Take what others changed before looking inside, so nothing stale can be taken out.
+            if (PendingRemote.Count > 0) ApplyRemote(Refs(), s.IsHost, Read(Refs()));
+            return true;
+        }
+
+        /// <summary>Host: who holds the shop now; tells everyone.</summary>
+        private static void SetHolder(CoopLink s, int holder)
+        {
+            _holder = holder;
+            if (s.IsHost) s.SendGame(MessageType.ShopBusy, new ShopBusy { Holder = (byte)Math.Max(0, holder), Open = holder != Nobody });
+        }
+
+        private static void OnBusy(ShopBusy b)
+        {
+            if (!Connected(out var s)) return;
+            int from = s.LastFrom;
+            if (s.IsHost)
+            {
+                // A guest opened or closed a shop menu: first one in holds it.
+                if (b.Open)
+                {
+                    if (_holder == Nobody) SetHolder(s, from);
+                    else s.SendGameTo(from, MessageType.ShopBusy, new ShopBusy { Holder = (byte)_holder, Open = true }); // you lost
+                }
+                else if (_holder == from) SetHolder(s, Nobody);
+                return;
+            }
+            if (from != 0) return; // only the host says who holds it
+            _holder = b.Open ? b.Holder : Nobody;
+            if (_localOpen && _holder != Nobody && _holder != s.LocalIndex) CloseLocalMenu();
+        }
+
+        /// <summary>Someone else got the shop first: close our menu (its changes stay ours only if the host agrees).</summary>
+        private static void CloseLocalMenu()
+        {
+            try
+            {
+                var inv = GUIManager.Instance != null ? GUIManager.Instance.currentInventory : null;
+                if (inv != null) inv.Disable();
+                CoopToast.Show(Runtime.PlayerNames.Name(_holder) + " opened the shop first");
+            }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Could not close the shop menu: " + e.Message); }
+        }
+
+        /// <summary>Every frame: notice our shop menu opening/closing and claim or release the shop.</summary>
+        private static void TrackMenu(CoopLink s, ShopReferences refs)
+        {
+            bool open = ShopMenuOpen();
+            if (open == _localOpen) return;
+            _localOpen = open;
+            if (!open)
+            {
+                // Closing: send what changed first, so nobody opens it before seeing it.
+                SendChanges(s, refs);
+            }
+            if (s.IsHost)
+            {
+                if (open)
+                {
+                    if (_holder == Nobody) SetHolder(s, 0);
+                    else if (_holder != 0) CloseLocalMenu(); // a guest's claim got here first
+                }
+                else if (_holder == 0) SetHolder(s, Nobody);
+            }
+            else s.SendGame(MessageType.ShopBusy, new ShopBusy { Holder = (byte)s.LocalIndex, Open = open });
+        }
+
         // ---- shop state both ways ----
 
         public static void Tick()
@@ -201,6 +302,7 @@ namespace Coop.Plugin.Shared
             // Host left town or stopped sending: no customers, nothing at the register.
             if (!s.IsHost && now - _lastVisitorsAt > 1.5f) { VisitorPuppets.Clear(); _hostCashWaiting = false; }
 
+            if (_baseReady) TrackMenu(s, refs);
             if (now < _nextState) return;
             _nextState = now + StateInterval;
 
@@ -224,6 +326,14 @@ namespace Coop.Plugin.Shared
                 cur = Read(refs);
             }
 
+            SendChanges(s, refs, cur);
+        }
+
+        /// <summary>Sends every slot that differs from what both games last agreed on.</summary>
+        private static void SendChanges(CoopLink s, ShopReferences refs, Dictionary<string, ItemSaveInfo> cur = null)
+        {
+            if (!_baseReady) return;
+            cur = cur ?? Read(refs);
             var changed = new ShopSnapshot();
             foreach (var kv in cur)
             {

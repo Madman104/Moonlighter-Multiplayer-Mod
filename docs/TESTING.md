@@ -243,3 +243,10 @@ Nothing below has been played yet. Mark PASS/FAIL with notes.
 ## Spectate switching (mod 1.9.1)
 1. 2 players: the dead player is always in the living player's room (changes room with them).
 2. 3+ players, one dead: left/right click (or bumpers) switches who you watch; a toast names them; the view moves to their room.
+
+## Shop lock, missing art, bubbles (mod 1.10.0)
+1. Shop: one player opens a stand menu; the other gets "<name> is using the shop" when trying any stand, shop chest or the sales box.
+2. Put an item on a stand and close: the other player sees it on the stand within a moment; only one player can take it out (no copies).
+3. Both press open at the same instant: one menu closes with "<name> opened the shop first".
+4. Partner uses a weapon you don't own (e.g. Broom Spear): after a moment its swing shows. Log on the owner's side: "Sending sprite pictures to other players".
+5. Guest in the shop: customers' expression bubbles show above stands and furniture.

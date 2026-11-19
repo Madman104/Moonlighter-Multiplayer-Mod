@@ -198,6 +198,10 @@ namespace Coop.Core.Protocol
                     case MessageType.SpriteRequest:
                         w.Write(((SpriteRequest)msg).Key ?? "");
                         break;
+                    case MessageType.ShopBusy:
+                        var sb = (ShopBusy)msg;
+                        w.Write(sb.Holder); w.Write(sb.Open);
+                        break;
                     case MessageType.SpriteData:
                         var sdat = (SpriteData)msg;
                         var png = sdat.Png ?? new byte[0];
@@ -287,6 +291,8 @@ namespace Coop.Core.Protocol
                             return (type, new SummonGone { RoomKey = rd.ReadInt32(), Id = rd.ReadByte() });
                         case MessageType.SpriteRequest:
                             return (type, new SpriteRequest { Key = rd.ReadString() });
+                        case MessageType.ShopBusy:
+                            return (type, new ShopBusy { Holder = rd.ReadByte(), Open = rd.ReadBoolean() });
                         case MessageType.SpriteData:
                         {
                             var sd = new SpriteData { Key = rd.ReadString(), PivotX = rd.ReadSingle(), PivotY = rd.ReadSingle(), PixelsPerUnit = rd.ReadSingle() };

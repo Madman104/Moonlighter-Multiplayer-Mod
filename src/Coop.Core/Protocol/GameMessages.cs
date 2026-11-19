@@ -359,3 +359,18 @@ namespace Coop.Core.Protocol
         public byte[] Png = new byte[0];
     }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>
+    /// Shop menus (stands, shop chests, sales box) are one player at a time.
+    /// Guest to host: "I opened / closed a shop menu" (Holder = sender). Host to everyone: who
+    /// holds the shop now (Open = false: nobody). A guest whose menu is open while someone else
+    /// holds the shop closes it.
+    /// </summary>
+    public sealed class ShopBusy
+    {
+        public byte Holder;
+        public bool Open;
+    }
+}

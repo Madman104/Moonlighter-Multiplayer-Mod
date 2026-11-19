@@ -41,7 +41,8 @@ Everything works with a controller. Menus use up/down and confirm, and Steam inv
 
 - **Bed:** the host's bed ends the day for both players, and everyone gets the bed's bonus.
 - **Shop:**
-  - Either player can stock showcases, set prices and use the register.
+  - Either player can stock showcases, set prices and use the register. Stands update for everyone as you change them.
+  - One player at a time in the shop's menus (stands, shop chests, sales box): others see "<name> is using the shop" until it's closed.
   - Customers come into the host's game; the guest sees them and can sell to them.
 - **Emblem portal:** the host's portal is the shared one. The guest's portal asks the host to go through theirs.
 
@@ -61,7 +62,6 @@ Every other player's name (their Steam name) shows above their Will. Its colour 
 
 ## Known limits
 - Each enemy is run by the game of the nearest player, so it chases that player (walk closer than your partner and it turns on you). Its attacks can still hit anyone in the way. Hits on you are worked out on that player's screen, so with lag a hit can land a moment after it looked like a miss.
-- If both players change the same showcase or chest slot at the same moment, the last change wins.
 - A bigger shop building appears the next time you walk into town (new shops in town open straight away).
 - If some shop customers are invisible for the guest, send the log: it says "Customer sprite not loaded here".
 - Wanderer DLC dungeons are shared, apart from its in-between levels (the lift and the falling floor). It's untested: if DLC runs misbehave, set `[Co-op] ShareWandererDungeons = false` on every PC.

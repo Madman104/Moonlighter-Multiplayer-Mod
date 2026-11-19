@@ -53,6 +53,14 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void ShopBusy_round_trips()
+        {
+            var b = RoundTrip(MessageType.ShopBusy, new ShopBusy { Holder = 2, Open = true });
+            Assert.Equal(2, b.Holder);
+            Assert.True(b.Open);
+        }
+
+        [Fact]
         public void SummonGone_round_trips()
         {
             var g = RoundTrip(MessageType.SummonGone, new SummonGone { RoomKey = 4, Id = 101 });

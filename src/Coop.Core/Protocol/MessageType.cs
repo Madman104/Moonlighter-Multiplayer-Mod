@@ -45,5 +45,6 @@ namespace Coop.Core.Protocol
         TownState = 41,
         SpriteRequest = 42,
         SpriteData = 43,
+        ShopBusy = 44,
     }
 }
