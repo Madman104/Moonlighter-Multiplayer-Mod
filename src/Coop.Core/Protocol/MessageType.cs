@@ -46,5 +46,6 @@ namespace Coop.Core.Protocol
         SpriteRequest = 42,
         SpriteData = 43,
         ShopBusy = 44,
+        ShopClose = 45,
     }
 }

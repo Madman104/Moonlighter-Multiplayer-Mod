@@ -62,6 +62,9 @@ namespace Coop.Plugin.Shared
             harmony.Patch(AccessTools.Method(typeof(ShopManager), nameof(ShopManager.OpenShop)),
                 prefix: new HarmonyMethod(typeof(ShopSync), nameof(OpenShopPrefix)),
                 postfix: new HarmonyMethod(typeof(ShopSync), nameof(OpenShopPostfix)));
+            harmony.Patch(AccessTools.Method(typeof(ShopManager), nameof(ShopManager.CloseShop)),
+                prefix: new HarmonyMethod(typeof(ShopSync), nameof(CloseShopPrefix)),
+                postfix: new HarmonyMethod(typeof(ShopSync), nameof(CloseShopPostfix)));
             harmony.Patch(AccessTools.Method(typeof(CashPoint), nameof(CashPoint.TryToSellItem)),
                 prefix: new HarmonyMethod(typeof(ShopSync), nameof(SellPrefix)));
             harmony.Patch(AccessTools.Method(typeof(CashPoint), nameof(CashPoint.IsInstantActionBlocked)),
@@ -162,6 +165,9 @@ namespace Coop.Plugin.Shared
                 case MessageType.ShopOpen:
                     OpenLocally();
                     break;
+                case MessageType.ShopClose:
+                    CloseLocally();
+                    break;
                 case MessageType.ShopBusy:
                     OnBusy((ShopBusy)msg);
                     break;
@@ -178,15 +184,61 @@ namespace Coop.Plugin.Shared
             }
         }
 
+        /// <summary>
+        /// Open through the shop door, as pressing it does: the door remembers it's open, so
+        /// holding it later closes the shop (opening ShopManager alone left every other player's
+        /// door "closed", and holding it tried to open the shop again - the shop couldn't be closed).
+        /// </summary>
         private static void OpenLocally()
         {
             var sm = ShopManager.Instance;
             if (sm == null || Refs() == null || !sm.IsShopClosed) return;
             _applyingRemote = true;
-            try { sm.OpenShop(); }
+            try
+            {
+                var door = UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>();
+                if (door != null) door.OpenShop();
+                else sm.OpenShop();
+            }
             catch (Exception e) { CoopPlugin.Log.LogWarning("Could not open the shop: " + e.Message); }
             finally { _applyingRemote = false; }
             CoopPlugin.Log.LogInfo("Co-op: the shop is open");
+        }
+
+        // ---- closing the shop, for everyone ----
+
+        // Customers are only in the host's game: the host's shop closes when its last customer
+        // leaves. A guest closing asks the host; the host's close is passed to every guest.
+        private static bool CloseShopPrefix(ShopManager __instance)
+        {
+            if (_applyingRemote || !IsGuest() || !WorldSync.InHostWorld || __instance.IsShopClosed) return true;
+            Connected(out var s);
+            s.SendGame(MessageType.ShopClose, null);
+            CoopToast.Show("Closing the shop...");
+            return false; // closed here when the host's shop closes
+        }
+
+        private static void CloseShopPostfix(ShopManager __instance)
+        {
+            if (_applyingRemote || !Connected(out var s) || !s.IsHost || !__instance.IsShopClosed) return;
+            s.SendGame(MessageType.ShopClose, null);
+        }
+
+        private static void CloseLocally()
+        {
+            var sm = ShopManager.Instance;
+            if (sm == null || Refs() == null || sm.IsShopClosed) return;
+            Connected(out var s);
+            _applyingRemote = !s.IsHost; // the host's own close is sent on to the guests by its postfix
+            try
+            {
+                var door = UnityEngine.Object.FindObjectOfType<ShopEntranceDoor>();
+                if (door != null) door.CloseShop();
+                else sm.CloseShop();
+            }
+            catch (Exception e) { CoopPlugin.Log.LogWarning("Could not close the shop: " + e.Message); }
+            finally { _applyingRemote = false; }
+            CoopPlugin.Log.LogInfo("Co-op: the shop is closing");
         }
 
         private static void HostSell()

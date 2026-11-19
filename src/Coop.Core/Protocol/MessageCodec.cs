@@ -52,6 +52,7 @@ namespace Coop.Core.Protocol
                     case MessageType.EmblemReturn:
                     case MessageType.CashSell:
                     case MessageType.ShopOpen:
+                    case MessageType.ShopClose:
                     case MessageType.CatchUp:
                         break;
                     case MessageType.EntityStates:
@@ -252,6 +253,7 @@ namespace Coop.Core.Protocol
                         case MessageType.EmblemReturn:
                         case MessageType.CashSell:
                         case MessageType.ShopOpen:
+                        case MessageType.ShopClose:
                         case MessageType.CatchUp:
                             return (type, null);
                         case MessageType.EntityStates:

@@ -61,6 +61,14 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void ShopClose_has_no_body()
+        {
+            var (t, m) = MessageCodec.Decode(MessageCodec.Encode(MessageType.ShopClose, null));
+            Assert.Equal(MessageType.ShopClose, t);
+            Assert.Null(m);
+        }
+
+        [Fact]
         public void SummonGone_round_trips()
         {
             var g = RoundTrip(MessageType.SummonGone, new SummonGone { RoomKey = 4, Id = 101 });
