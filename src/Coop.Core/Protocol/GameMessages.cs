@@ -337,3 +337,25 @@ namespace Coop.Core.Protocol
     /// <summary>Either way: the town's upgrades and the banker, as JSON (last change wins).</summary>
     public sealed class TownState : PackedText { }
 }
+
+namespace Coop.Core.Protocol
+{
+    /// <summary>"I can't draw this sprite (texture/name): send me its picture." Sent to everyone.</summary>
+    public sealed class SpriteRequest
+    {
+        public string Key = "";
+    }
+
+    /// <summary>A sprite's picture (PNG of its rectangle) for a game that doesn't have it loaded.</summary>
+    public sealed class SpriteData
+    {
+        public const int MaxPngBytes = 256 * 1024;
+
+        public string Key = "";
+        /// <summary>Pivot as a fraction of the picture (0..1), as Sprite.Create takes it.</summary>
+        public float PivotX;
+        public float PivotY;
+        public float PixelsPerUnit = 1f;
+        public byte[] Png = new byte[0];
+    }
+}

@@ -42,6 +42,17 @@ namespace Coop.Core.Tests.Protocol
         }
 
         [Fact]
+        public void SpriteRequest_and_data_round_trip()
+        {
+            var r = RoundTrip(MessageType.SpriteRequest, new SpriteRequest { Key = "Atlas/BroomSpear_1" });
+            Assert.Equal("Atlas/BroomSpear_1", r.Key);
+            var d = RoundTrip(MessageType.SpriteData, new SpriteData { Key = "k", PivotX = 0.5f, PivotY = 0.25f, PixelsPerUnit = 1f, Png = new byte[] { 1, 2, 3 } });
+            Assert.Equal("k", d.Key);
+            Assert.Equal(0.25f, d.PivotY);
+            Assert.Equal(new byte[] { 1, 2, 3 }, d.Png);
+        }
+
+        [Fact]
         public void SummonGone_round_trips()
         {
             var g = RoundTrip(MessageType.SummonGone, new SummonGone { RoomKey = 4, Id = 101 });

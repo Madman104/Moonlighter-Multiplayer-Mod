@@ -43,5 +43,7 @@ namespace Coop.Core.Protocol
         SummonSpawned = 39,
         SummonGone = 40,
         TownState = 41,
+        SpriteRequest = 42,
+        SpriteData = 43,
     }
 }

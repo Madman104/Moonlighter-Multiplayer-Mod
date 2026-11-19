@@ -131,6 +131,7 @@ namespace Coop.Plugin.Runtime
             Dungeon.EnemySync.Attach(Session);
             Dungeon.EnemyMirror.Attach(Session);
             Sync.PartnerSounds.Attach(Session);
+            Sync.SpriteTransfer.Attach(Session);
             Dungeon.EnemyHitGuard.Attach(Session);
             Dungeon.ProjectileMirror.Attach(Session);
             Dungeon.SummonSync.Attach(Session);

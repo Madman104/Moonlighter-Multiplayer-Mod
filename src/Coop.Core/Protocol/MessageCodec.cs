@@ -195,6 +195,16 @@ namespace Coop.Core.Protocol
                         var sg = (SummonGone)msg;
                         w.Write(sg.RoomKey); w.Write(sg.Id);
                         break;
+                    case MessageType.SpriteRequest:
+                        w.Write(((SpriteRequest)msg).Key ?? "");
+                        break;
+                    case MessageType.SpriteData:
+                        var sdat = (SpriteData)msg;
+                        var png = sdat.Png ?? new byte[0];
+                        if (png.Length > SpriteData.MaxPngBytes) throw new InvalidDataException("sprite picture too big");
+                        w.Write(sdat.Key ?? ""); w.Write(sdat.PivotX); w.Write(sdat.PivotY); w.Write(sdat.PixelsPerUnit);
+                        w.Write(png.Length); w.Write(png);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown message type");
                 }
@@ -275,6 +285,16 @@ namespace Coop.Core.Protocol
                             return (type, new SummonSpawned { RoomKey = rd.ReadInt32(), Id = rd.ReadByte(), Name = rd.ReadString(), Tile = rd.ReadInt32(), X = rd.ReadSingle(), Y = rd.ReadSingle() });
                         case MessageType.SummonGone:
                             return (type, new SummonGone { RoomKey = rd.ReadInt32(), Id = rd.ReadByte() });
+                        case MessageType.SpriteRequest:
+                            return (type, new SpriteRequest { Key = rd.ReadString() });
+                        case MessageType.SpriteData:
+                        {
+                            var sd = new SpriteData { Key = rd.ReadString(), PivotX = rd.ReadSingle(), PivotY = rd.ReadSingle(), PixelsPerUnit = rd.ReadSingle() };
+                            int pngLen = rd.ReadInt32();
+                            if (pngLen < 0 || pngLen > SpriteData.MaxPngBytes) throw new InvalidDataException("bad sprite picture size");
+                            sd.Png = rd.ReadBytes(pngLen);
+                            return (type, sd);
+                        }
                         case MessageType.Relay:
                         {
                             var rl = new Relay { From = rd.ReadByte() };
